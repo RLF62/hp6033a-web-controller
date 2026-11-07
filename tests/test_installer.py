@@ -190,6 +190,20 @@ check_nginx_conflicts
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("active HTTP/HTTPS listener", result.stderr)
 
+    def test_https_listener_rejected(self):
+        result = self.run_nginx_check(
+            listeners="listen 443 ssl;"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("active HTTP/HTTPS listener", result.stderr)
+
+    def test_ipv6_https_listener_rejected(self):
+        result = self.run_nginx_check(
+            listeners="listen [::]:443 ssl;"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("active HTTP/HTTPS listener", result.stderr)
+
     def test_unused_nginx_accepted(self):
         result = self.run_nginx_check(
             listeners="listen 8080;"
@@ -460,4 +474,14 @@ class NginxOriginSecurityTests(unittest.TestCase):
         self.assertNotIn(
             'if ($http_origin != "https://192.168.1.177") {',
             self.nginx
+        )
+
+
+
+class InstallationStateReportingTests(unittest.TestCase):
+
+    def test_systemd_creation_state_is_reported(self):
+        self.assertIn(
+            'echo "  systemd service created: $SERVICE_CREATED"',
+            INSTALLER.read_text(encoding="utf-8")
         )

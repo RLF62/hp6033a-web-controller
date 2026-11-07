@@ -300,7 +300,7 @@ check_nginx_conflicts() {
 
     # Conservative policy: require an unused Nginx installation.
     # Do not disable, replace, or modify existing websites.
-    if sudo nginx -T 2>&1 | grep -Eq         '^[[:space:]]*listen[[:space:]]+([^[:space:];]*:)?(80|443)([[:space:];]|$)'; then
+    if sudo nginx -T 2>&1 | grep -Eq '^[[:space:]]*listen[[:space:]]+([^[:space:];]+:)?(80|443)([[:space:];]|$)'; then
         echo "ERROR: Nginx already has an active HTTP/HTTPS listener." >&2
         echo "Review existing websites before installing." >&2
         return 1
