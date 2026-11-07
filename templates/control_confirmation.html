@@ -1,4 +1,4 @@
-<label style="display:inline-flex;align-items:center;gap:.4em;font-size:.85em">
+<label style="display:inline-flex;align-items:center;gap:.5em;min-height:40px;cursor:pointer">
   <input type="checkbox" id="skip-control-confirmations" autocomplete="off">
   Skip control confirmation popups
 </label>
@@ -7,9 +7,12 @@ const confirmControl=(()=>{
  const checkbox=document.getElementById('skip-control-confirmations');
  const key='hp6033a.skipControlConfirmations';
  checkbox.checked=false;
- try{checkbox.checked=sessionStorage.getItem(key)==='true';}catch{}
+ try{checkbox.checked=localStorage.getItem(key)==='true';}catch{}
  checkbox.addEventListener('change',()=>{
-  try{sessionStorage.setItem(key,String(checkbox.checked));}catch{}
+  try{localStorage.setItem(key,String(checkbox.checked));}catch{}
+ });
+ window.addEventListener('storage',event=>{
+  if(event.key===key||event.key===null)checkbox.checked=event.newValue==='true';
  });
  return message=>checkbox.checked||window.confirm(message);
 })();

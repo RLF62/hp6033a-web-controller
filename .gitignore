@@ -6,6 +6,7 @@ config.json
 
 # Authentication and certificates
 .control_htpasswd
+.control_auth_mode
 *.htpasswd
 *.key
 *.pem

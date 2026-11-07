@@ -27,7 +27,11 @@ CONTROLLER_HOST="hp6033a.local"
 
 # Check the documentation and API endpoints:
 curl -fsS "https://${CONTROLLER_HOST}/docs/" -o /dev/null
-curl -fsS "https://${CONTROLLER_HOST}/api/status"</code></pre><p>Use reload after testing nginx changes. A TLS certificate must match the URL and be trusted by the client before the control login is used.</p></section><section id="gpib"><h2>GPIB and serial diagnostics</h2><pre><code>lsusb
+curl -fsS "https://${CONTROLLER_HOST}/api/status"</code></pre><p>Use reload after testing nginx changes. A TLS certificate must match the URL and be trusted by the client before the control login is used.</p>
+<h3>Enable Setup password controls on an updated controller</h3>
+<pre><code>sudo bash ~/hp6033a/deploy/set-control-auth.sh dashboard</code></pre>
+<p>Run once after updating a previously installed application. The command tests Nginx and restores its previous site configuration if activation fails. Use dashboard Setup afterward.</p>
+</section><section id="gpib"><h2>GPIB and serial diagnostics</h2><pre><code>lsusb
 ls -l /dev/usbtmc* /dev/ttyACM*
 cd /home/pi/hp6033a
 venv/bin/pyvisa-info
@@ -44,13 +48,14 @@ venv/bin/python -c &quot;import pyvisa; print(pyvisa.ResourceManager(&#x27;@py&#
 <p>This is the command set used by the application. Direct writes bypass its remote-control checks.</p></section><section id="api"><h2>Application endpoints</h2>
 <dl><dt>GET /api/status</dt><dd>GPIB measurements, setpoints, mode and connection state.</dd>
 <dt>GET /api/arduino/status</dt><dd>Optional serial firmware health. <code>?force=1</code> bypasses the cache.</dd>
-<dt>POST /api/settings</dt><dd>Updates dashboard name and saved presets. Hardware settings are rejected.</dd>
-<dt>POST /api/control/enable</dt><dd>Authenticates and enables programming after instrument checks.</dd>
+<dt>POST /api/settings</dt><dd>Updates dashboard name, Classic front-panel labels, and saved presets. Hardware settings are rejected.</dd>
+<dt>POST /api/admin/control-auth</dt><dd>In dashboard-managed mode, accepts a JSON boolean <code>password_required</code> with the controller login and matching HTTPS Origin. A mode change clears remote programming authorization.</dd>
+<dt>POST /api/control/enable</dt><dd>Enables programming after instrument checks and requires credentials in protected mode.</dd>
 <dt>POST /api/control/disable</dt><dd>Clears authorization. Output state is unaffected.</dd>
 <dt>POST /api/control/set</dt><dd>Expects a JSON object with <code>key</code> and <code>value</code>. Supported keys are <code>voltage</code>, <code>current</code> and <code>output</code>. Output takes a boolean.</dd>
 <dt>POST /api/control/output-off</dt><dd>Turns off output and verifies readback. A verified shutdown preserves authorization. A failed or unverified shutdown clears it.</dd></dl>
 <p>Typical failures are 400 for invalid input, 401 for credentials, 403 for access or authorization, 409 for enable-time instrument state, and 503 for communication or readback errors.</p></section><section id="updates"><h2>Update and maintain</h2>
 <p>Back up the app and configuration before an update. Stage new files on a spare Pi first. Preserve <code>config.json</code>, the credential files, and TLS material. Changes to Python or dependencies require restarting Gunicorn. Documentation and templates can be verified through the HTTPS pages after publishing.</p>
 <p>See <a href="/static/docs/recovery.html#backup">backup commands</a> and <a href="/static/docs/recovery.html#restore">restore commands</a> for the full sequence.</p></section>
-<footer><p class="muted">Deployed baseline inspected November 5, 2026.</p><a href="#top">Back to top</a></footer>
+<footer><p class="muted">Development setup documentation updated November 7, 2026.</p><a href="#top">Back to top</a></footer>
 </main></body></html>

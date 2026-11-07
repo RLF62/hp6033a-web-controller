@@ -443,7 +443,11 @@
            clip-path="url(#hp-logo-circle)"/>
    </svg>
   </div>
-  <div class="hp-nameplate"><span class="model-number">6033A</span><span>SYSTEM POWER SUPPLY</span><span>0-20V/0-30A, 200W</span></div>
+  <div class="hp-nameplate">
+   <span class="model-number" id="classic-label-model">{{ classic_labels.model }}</span>
+   <span id="classic-label-name">{{ classic_labels.name }}</span>
+   <span id="classic-label-ratings">{{ classic_labels.voltage }}/{{ classic_labels.current }}, {{ classic_labels.power }}</span>
+  </div>
   <div class="hp-manufacturer">HEWLETT • PACKARD</div>
   <span class="instrument-custom-name" id="instrument-name">HP 6033A</span>
  </header>
@@ -492,7 +496,6 @@
       <button type="button" id="output-on" disabled>OUTPUT ON</button>
       <button type="button" id="output-off" disabled>OUTPUT OFF</button>
     </div>
-    {% include "control_confirmation.html" %}
 <div id="adjust-message" class="adjust-message" role="status" aria-live="polite">Knob locked until remote control is enabled and output is OFF.</div>
    </div>
  </section>
@@ -505,12 +508,56 @@
   <p>Enter the same control credentials used by the Modern dashboard. These credentials are held only in this page's memory and sent to the server for protected control requests. Use only on a trusted network until HTTPS is configured.</p>
   <label for="control-auth-user">Username</label><input id="control-auth-user" name="username" autocomplete="username" required>
   <label for="control-auth-password">Password</label><input id="control-auth-password" name="password" type="password" autocomplete="current-password" required>
+  {% set field = 'control-auth-password' %}{% include "password_visibility.html" %}
   <div class="auth-actions"><button type="button" id="control-auth-cancel">Cancel</button><button type="submit">Continue</button></div>
  </form>
 </dialog>
 
 <details class="extra">
-  <summary>Extra Remote Controls &amp; Settings</summary>
+  <summary>Setup &amp; Extra Controls</summary>
+  {% include "control_preferences.html" %}
+
+  <form id="classic-label-form">
+   <fieldset>
+    <legend>Classic front-panel labels</legend>
+    {% for key, title in [('model','Model'),('name','Name'),('voltage','Voltage range'),('current','Current range'),('power','Maximum power')] %}
+    <label style="display:block;margin:.5em 0">{{ title }}
+     <input name="{{ key }}" value="{{ classic_labels[key] }}" required maxlength="40">
+    </label>
+    {% endfor %}
+    <p>These labels are display text. Electrical limits are configured separately.</p>
+    <button type="submit">Save front-panel labels</button>
+    <span id="classic-label-status" role="status"></span>
+   </fieldset>
+  </form>
+  <script>
+  document.getElementById('classic-label-form').addEventListener('submit',async event=>{
+   event.preventDefault();
+   const form=event.currentTarget;
+   const button=form.querySelector('button');
+   const status=document.getElementById('classic-label-status');
+   button.disabled=true;
+   status.textContent='Saving…';
+   try{
+    const response=await fetch('/api/settings',{
+     method:'POST',
+     headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({classic_labels:Object.fromEntries(new FormData(form))})
+    });
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||'Save failed');
+    const labels=data.classic_labels;
+    document.getElementById('classic-label-model').textContent=labels.model;
+    document.getElementById('classic-label-name').textContent=labels.name;
+    document.getElementById('classic-label-ratings').textContent=labels.voltage+'/'+labels.current+', '+labels.power;
+    status.textContent='Saved.';
+   }catch(error){
+    status.textContent=error.message;
+   }finally{
+    button.disabled=false;
+   }
+  });
+  </script>
 
   <p>Use the <a href="/">Modern dashboard</a> to enable or disable remote programming. The Classic knob stages voltage/current settings; APPLY uses the existing server safety checks.</p>
 
@@ -551,6 +598,7 @@ const decimals={voltage:3,current:3};
 let mode='voltage',fine=false,settingsView=false,lastStatus=null,staged=null,dirty=false,busy=false,blocked=false;
 let controlAuthorization=null; // Memory only; never persisted.
 function requestControlAuthorization(){
+ if(!{{ password_required | tojson }})return Promise.resolve({});
  if(controlAuthorization)return Promise.resolve(controlAuthorization);
  const dialog=el('control-auth-dialog'),form=el('control-auth-form');
  return new Promise(resolve=>{
@@ -563,7 +611,7 @@ function requestControlAuthorization(){
    const username=el('control-auth-user').value;
    const password=el('control-auth-password').value;
    if(!username||!password)return;
-   controlAuthorization='Basic '+btoa(unescape(encodeURIComponent(username+':'+password)));
+   controlAuthorization={'Authorization':'Basic '+btoa(unescape(encodeURIComponent(username+':'+password)))};
    el('control-auth-password').value='';
    dialog.close('authorized');
   };
@@ -632,7 +680,7 @@ function showControls(){
  el('adjust-knob').setAttribute('aria-valuemax',String(limits[mode]));
  el('adjust-knob').setAttribute('aria-valuenow',String(staged??0));
  el('adjust-knob').setAttribute('aria-valuetext',staged===null?'Unavailable':staged.toFixed(3)+(mode==='voltage'?' volts':' amps'));
- if(!ok&&!busy){message(blocked?adjustmentFailure:lastStatus?.gpib_connected!==true?'GPIB disconnected — knob locked.':lastStatus?.remote_control_enabled!==true?'Press ENABLE REMOTE below to authorize programming.':lastStatus?.output!==false?'Output must be confirmed OFF to adjust settings.':'Waiting for valid setpoint readback.');}
+ if(!ok&&!busy){message(blocked?adjustmentFailure:lastStatus?.gpib_connected!==true?'GPIB disconnected — knob locked.':lastStatus?.remote_control_enabled!==true?'Press ENABLE REMOTE above to authorize programming.':lastStatus?.output!==false?'Output must be confirmed OFF to adjust settings.':'Waiting for valid setpoint readback.');}
 }
 function resetDraft(){
  dirty=false;
@@ -763,7 +811,7 @@ async function applyDraft(){
     method:'POST',
     headers:{
      'Content-Type':'application/json',
-     'Authorization':authorization
+     ...authorization
     },
     body:JSON.stringify({key,value})
    });
@@ -833,7 +881,7 @@ async function enableRemoteFromClassic(){
   const action=disabling?'disable':'enable';
   const response=await fetch('/api/control/'+action,{
    method:'POST',
-   headers:{'Authorization':authorization}
+   headers:{...authorization}
   });
 
   if(response.status===401){
@@ -909,7 +957,7 @@ async function controlOutputFromClassic(turnOn){
    method:'POST',
    headers:{
     'Content-Type':'application/json',
-    'Authorization':authorization
+    ...authorization
    },
    body:JSON.stringify(turnOn?{key:'output',value:true}:{})
   });

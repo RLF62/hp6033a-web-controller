@@ -24,7 +24,7 @@
     <nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
   </header>
   <nav aria-label="On this page">
-    <a href="#overview">System overview</a><a href="#operation">Operation</a><a href="#diagnostics">Diagnostics</a><a href="#maintenance">Maintenance</a><a href="#interfaces">Interfaces</a>
+    <a href="#overview">System overview</a><a href="#setup">Dashboard setup</a><a href="#operation">Operation</a><a href="#diagnostics">Diagnostics</a><a href="#maintenance">Maintenance</a><a href="#interfaces">Interfaces</a>
   </nav>
   <section id="documentation"><h2>Documentation library</h2><p>Use the detailed pages for operation, commands, fresh installation, and recovery.</p><nav aria-label="Documentation"><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></section>
   <section id="overview">
@@ -35,11 +35,16 @@
       <dt>Classic front panel</dt><dd>Instrument-style readback and staged voltage/current adjustment. Apply submits the staged value through the same server checks as the Modern dashboard.</dd>
     </dl>
   </section>
+  <section id="setup">
+    <h2>Dashboard setup</h2>
+    <p>Open <a href="/#control-setup">Setup in Modern</a> or <a href="/classic-dual#control-setup">Setup &amp; Extra Controls in Classic</a>. Both views group the confirmation preference and control password policy. Classic Setup also includes the front-panel labels.</p>
+    <p>Changing the password policy always requires the controller login. The confirmation preference is stored per browser profile and controller URL. The <a href="/static/docs/installation.html">installation guide</a> covers first-time setup and upgrades.</p>
+  </section>
   <section id="operation">
     <h2>Operation</h2>
     <p>In <strong>Live Read Only</strong>, the controller queries the supply for setpoints, voltage, current and output state. The status API currently reports regulation as unknown. Use the GPIB connection indicator before interpreting a reading. When GPIB fails, the API reports output as unknown and measured values default to zero.</p>
     <ol>
-      <li>To program the supply, confirm its output is off and the existing setpoints are within the controller limits. Authorize remote programming from either dashboard with the control login.</li>
+      <li>To program the supply, confirm its output is off and the existing setpoints are within the controller limits. Authorize remote programming from either dashboard. Enter the controller login when password protection is enabled.</li>
       <li>With output confirmed off, apply a voltage from 0 to 20 V and a current limit from 0 to 30 A. A selected preset turns green immediately on either dashboard. Press Apply to send the staged settings and see the instrument readback. Reset discards staged changes and restores the highlight to the programmed values. The supply is autoranging. The maximum voltage and maximum current are separate setpoint limits. Available simultaneous output depends on the instrument's power envelope.</li>
       <li>Before enabling output, verify the load and applied setpoints. The server checks that output is off and requires a current setpoint of at least 0.001 A for output-on.</li>
       <li>Use <strong>Output OFF</strong> to request shutdown and check the confirmation. The controller keeps the current remote programming authorization after confirming output is off. If it cannot verify shutdown, it clears authorization.</li>
@@ -73,10 +78,11 @@ ls -l /run/hp6033a/gunicorn.sock /dev/ttyACM0</code></pre>
       <dt><code>GET /api/status</code></dt><dd>Returns live GPIB measurements, setpoints, output state, saved presets and remote programming state.</dd>
       <dt><code>GET /api/arduino/status</code></dt><dd>Returns cached serial diagnostics. Add <code>?force=1</code> to request a fresh probe.</dd>
       <dt><code>POST /api/settings</code></dt><dd>Updates saved dashboard settings such as the instrument name and preset lists.</dd>
-      <dt><code>POST /api/control/…</code></dt><dd>Authenticated endpoints for <code>enable</code>, <code>disable</code>, <code>set</code> and <code>output-off</code>. The deployed nginx configuration restricts access to the local network and loopback.</dd>
+      <dt><code>POST /api/control/…</code></dt><dd>Endpoints for <code>enable</code>, <code>disable</code>, <code>set</code> and <code>output-off</code>. The local-network policy, origin checks, and selected authentication mode apply.</dd>
+      <dt><code>POST /api/admin/control-auth</code></dt><dd>Changes the dashboard-managed password policy after a same-origin check and controller login.</dd>
     </dl>
   </section>
-  <footer><p class="muted">Verified against the deployed controller on November 5, 2026.</p><a href="#top">Back to top</a></footer>
+  <footer><p class="muted">Development setup documentation updated November 7, 2026.</p><a href="#top">Back to top</a></footer>
 </main>
 </body>
 </html>

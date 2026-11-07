@@ -1,28 +1,94 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, g
 from pathlib import Path
 from contextlib import closing
+from tempfile import NamedTemporaryFile
 import json, threading, math, os, time
 app=Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 ROOT=Path(__file__).resolve().parent
 CFG=ROOT/'config.json'
+NGINX_SITE = Path('/etc/nginx/sites-enabled/hp6033a')
 lock=threading.Lock()
 DEFAULT={'instrument_name':'HP 6033A','voltage':0.0,'current':1.0,'output':False,'front_panel_lockout_requested':False,'voltage_presets':[3.3,5,9,12,13.8,18], 'current_presets':[0.5,1,2,3,5,10]}
+CLASSIC_LABEL_DEFAULTS = {
+    'model': '6033A',
+    'name': 'SYSTEM POWER SUPPLY',
+    'voltage': '0-20V',
+    'current': '0-30A',
+    'power': '200W',
+}
+
+
+def valid_classic_label(value):
+    return isinstance(value, str) and 1 <= len(value.strip()) <= 40 and value.isprintable()
+
+
 def load():
     try:
         data=json.loads(CFG.read_text()); return {**DEFAULT,**data}
     except (OSError,ValueError):return DEFAULT.copy()
 state=load()
+configured_labels = state.get('classic_labels')
+if not isinstance(configured_labels, dict):
+    configured_labels = {}
+state['classic_labels'] = {
+    key: configured_labels[key].strip() if valid_classic_label(configured_labels.get(key)) else default
+    for key, default in CLASSIC_LABEL_DEFAULTS.items()
+}
 state["output"]=False  # Simulation defaults OFF on every process restart
 def save():
     temp=CFG.with_suffix('.tmp');temp.write_text(json.dumps(state,indent=2));temp.replace(CFG)
+
+
+def proxy_control_auth_mode():
+    # Only trust the header overwritten by the HTTPS Nginx Unix-socket proxy.
+    if request.environ.get('REMOTE_ADDR') != '' or not request.is_secure:
+        return None
+    mode = request.headers.get('X-HP6033A-Password-Free')
+    if mode not in ('1', '2'):
+        return None
+    # Older sites forward unknown client headers. Require an installed site
+    # that explicitly overwrites the header in both HTTPS proxy locations.
+    try:
+        directive = f'proxy_set_header X-HP6033A-Password-Free {mode};'
+        lines = NGINX_SITE.read_text().splitlines()
+        if sum(line.strip() == directive for line in lines) == 2:
+            return mode
+    except (OSError, UnicodeError):
+        pass
+    return None
+
+
+def control_password_required():
+    mode = proxy_control_auth_mode()
+    if mode == '2':
+        try:
+            return (ROOT / '.control_auth_mode').read_text().strip() != 'password-free' or (
+                not (ROOT / '.control_htpasswd').is_file()
+            )
+        except (OSError, UnicodeError):
+            return True
+    return mode != '1'
+
+
 @app.get('/')
 def home():
-    return render_template('index.html', limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT))
+    return render_template(
+        'index.html', password_required=control_password_required(),
+        auth_mode_editable=proxy_control_auth_mode() == "2",
+        limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT)
+    )
 
 @app.get('/classic-dual')
 def classic_dual():
-    return render_template('classic_dual_preview.html', limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT))
+    with lock:
+        labels = dict(state['classic_labels'])
+    return render_template(
+        'classic_dual_preview.html', classic_labels=labels,
+        password_required=control_password_required(),
+        auth_mode_editable=proxy_control_auth_mode() == "2",
+        limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT)
+    )
 
 @app.get('/docs/')
 def docs():return send_from_directory(ROOT/'docs','index.html')
@@ -186,37 +252,76 @@ def write_gpib_setting(key, value):
 
     # REMOTE_AUTH_API_V1
 
-# FLASK_CONTROL_AUTH_V1
-@app.before_request
-def authenticate_control_request():
-    if not request.path.startswith('/api/control/'):
-        return None
-
+def valid_control_credentials():
     import bcrypt
     import hmac
 
     credentials = request.authorization
     if not credentials or credentials.type.lower() != 'basic':
-        return jsonify(error='Authentication required'), 401
-
+        return False
     try:
         entry = (ROOT / '.control_htpasswd').read_text().strip()
         username, password_hash = entry.split(':', 1)
-
         valid_user = hmac.compare_digest(
-            credentials.username or '', username
+            (credentials.username or '').encode('utf-8'), username.encode('utf-8')
         )
         valid_password = bcrypt.checkpw(
-            (credentials.password or '').encode('utf-8'),
-            password_hash.encode('ascii')
+            (credentials.password or '').encode('utf-8'), password_hash.encode('ascii')
         )
-
-        if valid_user and valid_password:
-            return None
+        return valid_user and valid_password
     except (OSError, ValueError, UnicodeError):
-        pass
+        return False
 
-    return jsonify(error='Invalid credentials'), 401
+
+@app.before_request
+def authenticate_control_request():
+    if not request.path.startswith('/api/control/'):
+        return None
+
+    # Serialize authorization and instrument operations with mode changes.
+    control_lock.acquire()
+    g.control_request_locked = True
+    if control_password_required() and not valid_control_credentials():
+        return jsonify(error='Invalid or missing credentials'), 401
+    return None
+
+
+@app.teardown_request
+def release_control_request_lock(error):
+    if g.pop('control_request_locked', False):
+        control_lock.release()
+
+
+@app.post('/api/admin/control-auth')
+def set_dashboard_control_auth():
+    global remote_control_enabled
+
+    if proxy_control_auth_mode() != '2':
+        return jsonify(error='Dashboard authentication settings are unavailable'), 403
+    if request.headers.get('Origin') != f'https://{request.host}':
+        return jsonify(error='Request origin did not match the controller'), 403
+    if not valid_control_credentials():
+        return jsonify(error='Invalid or missing credentials'), 401
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or type(data.get('password_required')) is not bool:
+        return jsonify(error='Expected a password requirement setting'), 400
+
+    required = data['password_required']
+    with control_lock:
+        if required != control_password_required():
+            temporary = None
+            try:
+                with NamedTemporaryFile(mode='w', dir=ROOT, delete=False) as config:
+                    temporary = Path(config.name)
+                    config.write('protected\n' if required else 'password-free\n')
+                temporary.replace(ROOT / '.control_auth_mode')
+            except OSError:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
+                return jsonify(error='Could not save the authentication setting'), 500
+            remote_control_enabled = False
+    return jsonify(password_required=required)
 
 
 @app.post('/api/control/enable')
@@ -396,6 +501,15 @@ def arduino_status():
 @app.post('/api/settings')
 def settings():
     data=request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify(error='Expected a JSON object'),400
+    if 'classic_labels' in data:
+        labels = data['classic_labels']
+        if not isinstance(labels, dict) or not labels or any(
+            key not in CLASSIC_LABEL_DEFAULTS or not valid_classic_label(value)
+            for key, value in labels.items()
+        ):
+            return jsonify(error='Each Classic label must be 1–40 printable characters'),400
     if any(k in data for k in ('voltage','current','output','front_panel_lockout_requested')):
         return jsonify(error='Read-only mode: instrument controls are disabled'),403
     if 'instrument_name' in data:
@@ -426,6 +540,11 @@ def settings():
                 state[key]=values
         if 'instrument_name' in data:
             state['instrument_name'] = data['instrument_name']
+        if 'classic_labels' in data:
+            state['classic_labels'] = {
+                **state['classic_labels'],
+                **{key: value.strip() for key, value in data['classic_labels'].items()},
+            }
         save()
     return status()
 if __name__=='__main__':app.run(host='127.0.0.1',port=8000)

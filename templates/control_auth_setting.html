@@ -1,0 +1,76 @@
+<div style="margin:.55em 0">
+ <button type="button" id="control-auth-setting-button"
+  style="max-width:100%;min-height:44px;white-space:normal;padding:.5em .75em"
+  {% if not auth_mode_editable %}disabled{% endif %}>
+  {% if password_required %}Disable control password{% else %}Require control password{% endif %}
+ </button>
+ <small style="display:block;margin-top:.35em">
+  {% if password_required %}Password protection is on.{% else %}Password-free control is on.{% endif %}
+  {% if not auth_mode_editable %} Dashboard changes require one-time setup on the Pi.{% endif %}
+ </small>
+</div>
+{% if auth_mode_editable %}
+<dialog id="control-auth-setting-dialog" aria-labelledby="control-auth-setting-title"
+ style="max-width:min(90vw,24em);box-sizing:border-box">
+ <form method="dialog" id="control-auth-setting-form">
+  <h3 id="control-auth-setting-title">
+   {% if password_required %}Disable control password?{% else %}Require control password?{% endif %}
+  </h3>
+  {% if password_required %}
+  <p>Anyone on the allowed LAN can request control. Use this only on a trusted LAN with no internet exposure.</p>
+  {% endif %}
+  <p>Enter the controller credentials to save this change. Changing modes disarms remote programming. The power supply output stays in its current state.</p>
+  <label for="control-auth-setting-user">Username</label>
+  <input id="control-auth-setting-user" autocomplete="username" required
+   style="display:block;max-width:100%;box-sizing:border-box;margin-bottom:.5em">
+  <label for="control-auth-setting-password">Password</label>
+  <div style="display:flex;align-items:center;gap:.5em">
+   <input id="control-auth-setting-password" type="password" autocomplete="current-password"
+    required style="width:100%;min-width:0;box-sizing:border-box">
+   {% set field = 'control-auth-setting-password' %}{% include "password_visibility.html" %}
+  </div>
+  <p id="control-auth-setting-result" role="status"></p>
+  <button type="button" id="control-auth-setting-cancel">Cancel</button>
+  <button type="submit" id="control-auth-setting-save">Save</button>
+ </form>
+</dialog>
+<script>
+(()=>{
+ const get=id=>document.getElementById('control-auth-setting-'+id);
+ const dialog=get('dialog'), form=get('form'), status=get('result'), save=get('save');
+ const cancel=get('cancel'), pass=get('password'), user=get('user');
+ const passwordRequired={{ password_required | tojson }};
+ get('button').addEventListener('click',()=>{
+  status.textContent='';
+  dialog.showModal();
+ });
+ cancel.addEventListener('click',()=>dialog.close());
+ dialog.addEventListener('cancel',event=>{if(save.disabled)event.preventDefault();});
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  save.disabled=true;
+  cancel.disabled=true;
+  status.textContent='Saving…';
+  try{
+   const credentials=btoa(unescape(encodeURIComponent(user.value.trim()+':'+pass.value)));
+   const reply=await fetch('/api/admin/control-auth',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Basic '+credentials},
+    body:JSON.stringify({password_required:!passwordRequired})
+   });
+   const result=await reply.json();
+   if(!reply.ok)throw Error(result.error||'Unable to change the control password setting.');
+   window.history.replaceState(null,'','#control-setup');
+   window.location.reload();
+  }catch(error){
+   status.textContent=error.message;
+   pass.value='';
+   pass.focus();
+  }finally{
+   save.disabled=false;
+   cancel.disabled=false;
+  }
+ });
+})();
+</script>
+{% endif %}

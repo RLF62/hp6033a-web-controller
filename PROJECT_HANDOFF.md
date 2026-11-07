@@ -37,11 +37,8 @@ The test controller has successfully communicated with the real HP 6033A.
 
 ## GitHub Status
 
-Last published development commit:
-466a44f
-
-Commit message:
-Improve automated installer, HTTPS validation, and recovery
+The public `main` branch carries the project source and installer. Use
+`git log -1 --oneline` in the checkout to record the exact release revision.
 
 SSH authentication was configured for the Pi Zero 2 W.
 
@@ -51,13 +48,25 @@ git@github.com:RLF62/hp6033a-web-controller.git
 ## Installer Status
 
 - Installer syntax verification passed.
-- 48 automated tests passed during development.
+- 53 automated tests passed during development.
 - HTTPS status API tested successfully.
 - Nginx and systemd integration tested on the development Pi.
 - Clean installation on fresh Raspberry Pi OS NOT YET VERIFIED.
 - Do not remove the README testing warning until clean-install validation succeeds.
 
-## Requested Improvements
+## Development Status
+
+- The wired-address origin fix is in the installer template and passed development
+  HTTPS origin checks. The production Android wired-path retest is pending.
+- Modern Setup and Classic Setup & Extra Controls group the saved confirmation
+  preference and the control password setting. Authentication changes require
+  controller credentials in either mode. Classic labels and the password
+  visibility buttons are implemented.
+- The existing development Pi has dashboard-managed authentication enabled.
+  Fresh installations enable it automatically. The clean-install warning still applies.
+- Production remains a separate deployment.
+
+## Original Improvement Requests
 
 ### 1. Verify the .250 Fix
 

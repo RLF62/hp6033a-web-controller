@@ -234,6 +234,7 @@ configure_nginx() {
     local target="/etc/nginx/sites-available/hp6033a"
     local enabled="/etc/nginx/sites-enabled/hp6033a"
     local generated="$APP_DIR/hp6033a.nginx.generated"
+    local renderer="$APP_DIR/deploy/render-control-auth.py"
 
     if [[ ! -f "$template" ]]; then
         echo "ERROR: Nginx template is missing." >&2
@@ -250,7 +251,7 @@ configure_nginx() {
         return 1
     fi
 
-    sed \
+    python3 "$renderer" dashboard "$template" | sed \
         -e "s|CONTROLLER_HOST|$CONTROLLER_HOST|g" \
         -e "s|LAN_SUBNET|$LAN_SUBNET|g" \
         "$template" > "$generated"
@@ -440,7 +441,7 @@ confirm_installation() {
     echo "Installation will configure:"
     echo "  - Python application and dependencies"
     echo "  - USB-GPIB device permissions"
-    echo "  - HTTPS and password authentication"
+    echo "  - HTTPS and LAN-restricted control (${CONTROL_AUTH_MODE:-protected})"
     echo "  - Nginx reverse proxy"
     echo "  - systemd service"
     echo
@@ -491,8 +492,12 @@ configure_authentication() {
     # Mark authentication setup as started before creating files.
     # This also covers a failure after only one file is created.
     AUTH_CREATED=true
-    bash "$auth_script" "$APP_DIR" "$APP_USER"
+    echo "Set the credentials used to change the control password policy."
+    bash "$auth_script" "$APP_DIR" "$APP_USER" || return 1
 
+    if [[ "${CONTROL_AUTH_MODE:-protected}" == password-free ]]; then
+        ( umask 077; printf 'password-free\n' > "$APP_DIR/.control_auth_mode" ) || return 1
+    fi
     verify_authentication
 
     echo "Controller authentication configured successfully."
@@ -800,6 +805,19 @@ collect_network_settings() {
     validate_network_settings
 }
 
+collect_control_auth_mode() {
+    local answer
+    echo "Password-free control is for a trusted LAN without internet exposure."
+    echo "Administrator credentials are set up in both modes."
+    read -r -p "Require a control password? [Y/n]: " answer || return 1
+    case "$answer" in
+        ""|y|Y) CONTROL_AUTH_MODE=protected ;;
+        n|N) CONTROL_AUTH_MODE=password-free ;;
+        *) echo "Enter y or n." >&2; return 1 ;;
+    esac
+}
+
+
 activate_controller() {
     echo "Activating HP 6033A Web Controller..."
 
@@ -905,7 +923,13 @@ main() {
     echo " HP 6033A Web Controller Installer"
     echo "========================================"
 
+    if (( EUID == 0 )); then
+        echo "Run bash install.sh as the controller user. The installer will use sudo when needed." >&2
+        return 1
+    fi
+
     collect_network_settings || return 1
+    collect_control_auth_mode || return 1
     run_preflight_checks || return 1
 
     if confirm_installation; then
@@ -955,7 +979,7 @@ main() {
     install_systemd_service
     configure_https
     configure_nginx
-    configure_authentication
+    configure_authentication || return 1
 
     validate_nginx_configuration
     validate_systemd_service
@@ -970,13 +994,13 @@ main() {
     activate_nginx || return 1
 
     # Verify that HTTPS reaches the actual HP 6033A application.
-    if ! "$APP_DIR/venv/bin/python" - "$CONTROLLER_HOST" <<'PYVERIFY'
+    if ! "$APP_DIR/venv/bin/python" - "$CONTROLLER_HOST" "${CONTROL_AUTH_MODE:-protected}" <<'PYVERIFY'
 import json
 import ssl
 import sys
 import urllib.request
 
-host = sys.argv[1]
+host, mode = sys.argv[1:]
 url = f"https://{host}/api/status"
 
 try:
@@ -990,7 +1014,13 @@ try:
     if not isinstance(status, dict) or not required.issubset(status):
         raise RuntimeError("Unexpected controller status response")
 
-    print("HTTPS controller status verification passed.")
+    expected = "Disable control password" if mode == "protected" else "Require control password"
+    for route in ("/", "/classic-dual"):
+        with urllib.request.urlopen(f"https://{host}{route}", context=context, timeout=15) as response:
+            page = response.read().decode("utf-8")
+        if 'id="control-auth-setting-dialog"' not in page or expected not in page:
+            raise RuntimeError(f"Expected {mode} authentication setup on {route}")
+    print("HTTPS status and dashboard setup verification passed.")
 except Exception as exc:
     print(f"ERROR: HTTPS controller verification failed: {exc}", file=sys.stderr)
     sys.exit(1)
@@ -1012,7 +1042,10 @@ PYVERIFY
     echo "========================================"
     echo "Controller URL: https://${CONTROLLER_HOST}/"
     echo "Your browser may warn about the self-signed certificate."
-    echo "Use your configured controller credentials for protected controls."
+    echo "Control authentication mode: ${CONTROL_AUTH_MODE:-protected}"
+    echo "Control preferences: Setup in Modern or Setup & Extra Controls in Classic."
+    echo "Use the controller credentials to change the authentication mode."
+    echo "Documentation: https://${CONTROLLER_HOST}/docs/"
 }
 
 

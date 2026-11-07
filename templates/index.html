@@ -225,7 +225,7 @@
 }
 </style>
 
-</head><body><main class="wrap"><header class="head"><div><h1>HP 6033A</h1><div class="muted">Wi-Fi Power Supply Controller &middot; <a href="/classic-dual" style="color: inherit; text-decoration: underline;">Classic View</a></div></div><span class="badge" id="mode_badge">LIVE GPIB · READ ONLY</span></header>
+</head><body><main class="wrap"><header class="head"><div><h1>HP 6033A</h1><div class="muted">Wi-Fi Power Supply Controller &middot; <a href="/classic-dual" style="color: inherit; text-decoration: underline;">Classic View</a> &middot; <a href="#control-setup" style="color:inherit">Setup</a></div></div><span class="badge" id="mode_badge">LIVE GPIB · READ ONLY</span></header>
 <div id="layout-toolbar" class="layout-toolbar">
   <button id="layout-customize" type="button">Customize Layout</button>
   <button id="layout-save" type="button" hidden>Save Layout</button>
@@ -274,8 +274,13 @@ Enable Remote Control
  <button id="out_off" type="button" onclick="turnOutputOff()">
   OUTPUT OFF
  </button>
-</div></div>{% include "control_confirmation.html" %}
-<p id="setpoints" class="muted"></p><p id="msg" role="status"></p></section><section class="card"><div class="split"><div><h2>Front panel lockout</h2><div class="muted">Request GPIB Local Lockout (LLO) to prevent front-panel changes once hardware support is installed.</div></div><label class="inputrow"><input type="checkbox" id="llo" onchange="post({front_panel_lockout_requested:this.checked})"><span>Request lockout</span></label></div><div class="statusrow"><span class="pill warn" id="llo_status">NOT APPLIED - SIMULATION ONLY</span></div><p class="note">Read-only mode: lockout changes are disabled. LLO disables the LCL/LOCAL return-to-local function while remote control is active. Actual lockout must be confirmed by the GPIB controller before displaying LOCKED.</p></section><footer class="foot"><a href="/docs/">Project documentation</a> · HP 6033A · live read-only</footer></main><script>
+</div></div>
+<p id="setpoints" class="muted"></p><p id="msg" role="status"></p></section><section class="card"><div class="split"><div><h2>Front panel lockout</h2><div class="muted">Request GPIB Local Lockout (LLO) to prevent front-panel changes once hardware support is installed.</div></div><label class="inputrow"><input type="checkbox" id="llo" onchange="post({front_panel_lockout_requested:this.checked})"><span>Request lockout</span></label></div><div class="statusrow"><span class="pill warn" id="llo_status">NOT APPLIED - SIMULATION ONLY</span></div><p class="note">Read-only mode: lockout changes are disabled. LLO disables the LCL/LOCAL return-to-local function while remote control is active. Actual lockout must be confirmed by the GPIB controller before displaying LOCKED.</p></section>
+<details class="card" style="grid-column:1 / -1">
+  <summary>Setup</summary>
+  {% include "control_preferences.html" %}
+</details>
+<footer class="foot"><a href="/docs/">Project documentation</a> · HP 6033A · live read-only</footer></main><script>
 const $=id=>document.getElementById(id);
 let s=null;let samples=[];
 let mobileDrafts={voltage:null,current:null};
@@ -286,6 +291,7 @@ const limits={{ limits | tojson }};
 let mobileAuthorization=null;
 
 function mobileAuthorize(){
+ if(!{{ password_required | tojson }})return Promise.resolve({});
  if(mobileAuthorization)return Promise.resolve(mobileAuthorization);
 
  return new Promise(resolve=>{
@@ -314,9 +320,9 @@ function mobileAuthorize(){
    e.preventDefault();
    if(!user.value.trim()||!pass.value)return;
 
-   mobileAuthorization='Basic '+btoa(
+   mobileAuthorization={'Authorization':'Basic '+btoa(
     unescape(encodeURIComponent(user.value.trim()+':'+pass.value))
-   );
+   )};
 
    const authorization=mobileAuthorization;
    finish(authorization);
@@ -428,7 +434,7 @@ async function applyMobileDrafts(){
     method:'POST',
     headers:{
      'Content-Type':'application/json',
-     'Authorization':authorization
+     ...authorization
     },
     body:JSON.stringify({key,value})
    });
@@ -559,7 +565,7 @@ async function toggleRemoteControl(){
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authorization
+                ...authorization
             },
             body: '{}'
         });
@@ -667,7 +673,7 @@ async function toggle(){
             credentials:'same-origin',
             headers:{
                 'Content-Type':'application/json',
-                'Authorization':authorization
+                ...authorization
             },
             body:JSON.stringify(payload)
         });
@@ -1151,6 +1157,7 @@ window.addEventListener('resize',drawGraph);get().catch(e=>$('msg').textContent=
    autocomplete="current-password" required
    style="display:block;width:100%;box-sizing:border-box;
    margin:6px 0 18px;padding:10px">
+  {% set field = 'mobile-auth-pass' %}{% include "password_visibility.html" %}
   <div style="display:flex;gap:12px;justify-content:flex-end">
    <button type="button" id="mobile-auth-cancel">Cancel</button>
    <button type="submit">Authorize</button>

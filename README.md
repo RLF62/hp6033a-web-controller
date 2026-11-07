@@ -55,15 +55,52 @@ Thanks to the developer for making this hardware interface available.
 
 **Status: Clean-install validation pending. Do not use on production systems yet.**
 
-On a fresh Raspberry Pi OS installation, download this repository, open a terminal in the project directory, and run:
+On a fresh Raspberry Pi OS installation, download this repository and open a
+terminal in the project directory as the user who will run the controller.
+The installer uses `sudo` for system setup.
 
     bash install.sh
 
-The installer configures dependencies, USB-GPIB, authentication, HTTPS, Nginx, and automatic startup. It checks the controller status API before reporting success.
+Enter the controller's HTTPS hostname or IP and its permitted LAN subnet.
+The installer configures dependencies, USB-GPIB permissions, authentication,
+HTTPS, Nginx, and automatic startup. It verifies the HTTPS status API and
+Setup sections before reporting success. Follow the [installation guide](static/docs/installation.html)
+to configure the VISA resource and verify communication with the supply.
 
 After installation, open the HTTPS URL displayed by the installer. Your browser may warn about the self-signed certificate; verify the Raspberry Pi address before proceeding.
 
 The installer will not overwrite an existing HP 6033A installation.
+
+### Control authentication and dashboard settings
+
+The installer defaults to password-protected control and creates a separate
+controller login in both modes. Choose password-free control only on a trusted
+LAN without internet exposure. Both modes use HTTPS,
+the configured LAN allowlist, and the same instrument safety checks.
+
+Open **Setup** in Modern or **Setup & Extra Controls** below the Classic
+instrument panel to find the confirmation and control password settings. Changing the mode always requires the controller
+credentials. A mode change disarms remote programming and leaves the power
+supply's physical output in its current state.
+
+Fresh installs enable the dashboard button. To enable it on a previously
+installed controller after updating its application and deployment scripts,
+run this once on the Raspberry Pi:
+
+```bash
+sudo bash /home/pi/hp6033a/deploy/set-control-auth.sh dashboard
+```
+
+The script validates Nginx before reloading and restores the previous site
+configuration if activation fails. It prompts for credentials if none exist.
+Reload the dashboard to use the button. The explicit `protected` and
+`password-free` command modes remain available for SSH-only administration
+and disable dashboard policy changes.
+
+The confirmation checkbox is saved per browser profile and controller URL.
+In Classic, open **Setup & Extra Controls** to edit the front-panel
+labels. The controller saves these labels in its configuration for all browsers.
+Changing a label has no effect on electrical limits.
 
 ## Safety
 
