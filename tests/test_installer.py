@@ -17,18 +17,26 @@ class InstallerSafetyTests(unittest.TestCase):
             r"(?m)^main\(\)\s*\{"
         )
 
-    def test_main_execution_disabled(self):
-        lines = self.script.splitlines()
+    def test_main_runs_only_when_executed_directly(self):
+        script = INSTALLER.read_text(encoding="utf-8")
 
-        active_calls = [
-            line for line in lines
-            if re.match(r'^\s*main\s+"\$@"\s*(?:#.*)?$', line)
-        ]
+        expected = (
+            'if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then\n'
+            '    main "$@"\n'
+            'fi'
+        )
+
+        self.assertTrue(
+            script.rstrip().endswith(expected),
+            "Installer must invoke main only when executed directly."
+        )
 
         self.assertEqual(
-            active_calls, [],
-            "Installer main entry point must remain disabled."
+            script.count('    main "$@"'),
+            1,
+            "Installer must have exactly one guarded main invocation."
         )
+
 
     def test_recovery_functions_exist(self):
         for name in (
@@ -151,7 +159,7 @@ check_installation_conflicts
 
 class NginxConflictBehaviorTests(unittest.TestCase):
 
-    def run_nginx_check(self, nginx_test_ok=True, listeners="", nginx_installed=True):
+    def run_nginx_check(self, nginx_test_ok=True, listeners="", nginx_installed=True, preexisting=True):
         import subprocess
 
         script = INSTALLER.read_text(encoding="utf-8")
@@ -181,6 +189,7 @@ sudo() {{
 }}
 
 {function}
+NGINX_PREEXISTING={'true' if preexisting else 'false'}
 check_nginx_conflicts
 """
 
@@ -227,6 +236,15 @@ check_nginx_conflicts
         result = self.run_nginx_check(nginx_test_ok=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("configuration is invalid", result.stderr)
+
+
+    def test_fresh_install_with_unexpected_https_listener_rejected(self):
+        result = self.run_nginx_check(
+            listeners="listen 80 default_server;\\nlisten 443 ssl;",
+            preexisting=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("active HTTP/HTTPS listener", result.stderr)
 
 
 class AuthenticationDependencyTests(unittest.TestCase):
@@ -444,22 +462,36 @@ class MainSequenceSafetyTests(unittest.TestCase):
             self.main.index("install_dependencies"),
         )
 
-    def test_main_does_not_activate_services(self):
-        import re
-
-        self.assertIsNone(
-            re.search(r"(?m)^\s*activate_controller\s*(?:#.*)?$", self.main)
+    def test_activation_follows_validation(self):
+        self.assertLess(
+            self.main.index("verify_ready_for_activation"),
+            self.main.index("activate_controller || return 1"),
         )
-        self.assertIsNone(
-            re.search(r"(?m)^\s*activate_nginx\s*(?:#.*)?$", self.main)
+        self.assertLess(
+            self.main.index("activate_controller || return 1"),
+            self.main.index("activate_nginx || return 1"),
         )
 
-    def test_main_keeps_activation_disabled(self):
-        self.assertIn("Services have NOT been activated.", self.main)
+    def test_https_verified_before_enabling_startup(self):
+        self.assertIn('url = f"https://{host}/api/status"', self.main)
         self.assertIn(
-            "Automatic activation is disabled pending final security review.",
-            self.main
+            'required = {"gpib_connected", "gpib_status", "mode"}',
+            self.main,
         )
+        self.assertLess(
+            self.main.index('url = f"https://{host}/api/status"'),
+            self.main.index("systemctl enable hp6033a.service"),
+        )
+
+    def test_success_message_includes_https_url(self):
+        self.assertIn(
+            'Controller URL: https://${CONTROLLER_HOST}/',
+            self.main,
+        )
+
+    def test_activation_failure_is_reported(self):
+        self.assertIn("activate_controller || return 1", self.main)
+        self.assertIn("activate_nginx || return 1", self.main)
 
 
 class NginxOriginSecurityTests(unittest.TestCase):

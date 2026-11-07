@@ -53,12 +53,17 @@ Thanks to the developer for making this hardware interface available.
 
 ## Installation
 
-The automated installer is currently undergoing final testing.
+**Status: Clean-install validation pending. Do not use on production systems yet.**
 
-Do not run install.sh on a production system yet.
+On a fresh Raspberry Pi OS installation, download this repository, open a terminal in the project directory, and run:
 
-Detailed installation and configuration instructions will be added
-after validation on a clean Raspberry Pi.
+    bash install.sh
+
+The installer configures dependencies, USB-GPIB, authentication, HTTPS, Nginx, and automatic startup. It checks the controller status API before reporting success.
+
+After installation, open the HTTPS URL displayed by the installer. Your browser may warn about the self-signed certificate; verify the Raspberry Pi address before proceeding.
+
+The installer will not overwrite an existing HP 6033A installation.
 
 ## Safety
 

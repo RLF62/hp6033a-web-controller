@@ -14,27 +14,29 @@ if [[ -z "$APP_HOME" || ! -d "$APP_HOME" ]]; then
 fi
 APP_DIR="$APP_HOME/hp6033a"
 
+NGINX_PREEXISTING=false
+
 # Installation functions are defined below.
 # The main installation sequence will be added after review.
 
 install_dependencies() {
     echo "Installing system dependencies..."
 
-    sudo apt-get update
+    sudo apt-get update || return 1
     sudo apt-get install -y \
         python3-venv \
         python3-pip \
         nginx \
         apache2-utils \
         libusb-1.0-0 \
-        openssl
+        openssl || return 1
 
     echo "Creating Python virtual environment..."
-    python3 -m venv "$APP_DIR/venv"
+    python3 -m venv "$APP_DIR/venv" || return 1
 
     echo "Installing Python dependencies..."
     "$APP_DIR/venv/bin/python" -m pip install \
-        -r "$APP_DIR/requirements.txt"
+        -r "$APP_DIR/requirements.txt" || return 1
 
     echo "Python dependencies installed successfully."
 }
@@ -58,19 +60,19 @@ install_application() {
         fi
     done
 
-    mkdir "$APP_DIR"
+    mkdir "$APP_DIR" || return 1
     APP_CREATED=true
 
     cp "$SOURCE_DIR/app.py" \
        "$SOURCE_DIR/requirements.txt" \
        "$SOURCE_DIR/config.example.json" \
-       "$APP_DIR/"
+       "$APP_DIR/" || return 1
 
     cp -a "$SOURCE_DIR/templates" \
           "$SOURCE_DIR/static" \
           "$SOURCE_DIR/docs" \
           "$SOURCE_DIR/deploy" \
-          "$APP_DIR/"
+          "$APP_DIR/" || return 1
 
     echo "Application files installed in $APP_DIR"
 }
@@ -462,10 +464,10 @@ run_preflight_checks() {
     echo "Running HP 6033A installation safety checks..."
     echo
 
-    validate_network_settings
-    check_installation_conflicts
-    check_security_conflicts
-    check_nginx_conflicts
+    validate_network_settings || return 1
+    check_installation_conflicts || return 1
+    check_security_conflicts || return 1
+    check_nginx_conflicts || return 1
 
     echo
     echo "All preliminary installation checks passed."
@@ -666,6 +668,7 @@ report_installation_state() {
 
 safe_installation_recovery() {
     echo "Performing conservative installation recovery..." >&2
+    local recovery_failed=0
 
     # Services are not started until installation is validated.
     # Only stop a service if this installer explicitly started it.
@@ -673,12 +676,20 @@ safe_installation_recovery() {
         if ! sudo systemctl stop hp6033a.service; then
             echo "CRITICAL: Failed to stop HP 6033A application service." >&2
             echo "Manual intervention may be required." >&2
-            return 1
+            recovery_failed=1
         fi
 
         if sudo systemctl is-active --quiet hp6033a.service; then
             echo "CRITICAL: HP 6033A application is still running." >&2
-            return 1
+            recovery_failed=1
+        fi
+    fi
+
+    # Undo automatic startup if this installation enabled it.
+    if [[ "${SERVICE_ENABLED_BY_INSTALLER:-false}" == true ]]; then
+        if ! sudo systemctl disable hp6033a.service; then
+            echo "CRITICAL: Could not disable automatic startup." >&2
+            recovery_failed=1
         fi
     fi
 
@@ -706,9 +717,11 @@ safe_installation_recovery() {
     # for inspection and manual recovery.
     echo "Remaining installation files preserved for inspection." >&2
     echo "Review the failed installation before retrying." >&2
+    return "$recovery_failed"
 }
 
 SERVICE_STARTED=false
+SERVICE_ENABLED_BY_INSTALLER=false
 
 verify_ready_for_activation() {
     echo "Performing final HP 6033A activation checks..."
@@ -892,8 +905,8 @@ main() {
     echo " HP 6033A Web Controller Installer"
     echo "========================================"
 
-    collect_network_settings
-    run_preflight_checks
+    collect_network_settings || return 1
+    run_preflight_checks || return 1
 
     if confirm_installation; then
         :
@@ -908,11 +921,34 @@ main() {
         return "$confirmation_status"
     fi
 
-    install_application
-    install_dependencies
+    # Record whether Nginx existed before installing dependencies.
+    if command -v nginx >/dev/null 2>&1; then
+        NGINX_PREEXISTING=true
+    else
+        NGINX_PREEXISTING=false
+    fi
 
-    # Recheck after apt installs Nginx, which may enable a default site.
-    check_nginx_conflicts
+    install_application || return 1
+    install_dependencies || return 1
+
+    # Existing Nginx installations must remain conflict-free.
+    # A fresh installation may contain Debian's default website.
+    if [[ "$NGINX_PREEXISTING" == true ]]; then
+        check_nginx_conflicts
+    else
+        echo "Validating newly installed Nginx configuration..."
+        sudo nginx -t || return 1
+
+        # A fresh Debian Nginx installation may include its default
+        # HTTP site. Never allow an unexpected HTTPS listener.
+        local nginx_config
+        nginx_config="$(sudo nginx -T 2>&1)" || return 1
+
+        if grep -Eq '^[[:space:]]*listen[[:space:]]+([^[:space:];]+:)?443([[:space:];]|$)' <<< "$nginx_config"; then
+            echo "ERROR: Unexpected existing HTTPS listener." >&2
+            return 1
+        fi
+    fi
 
     initialize_configuration
     configure_usbgpib
@@ -929,12 +965,56 @@ main() {
 
     echo
     echo "Installation files and configuration validated."
-    echo "Services have NOT been activated."
-    echo "Automatic activation is disabled pending final security review."
+
+    activate_controller || return 1
+    activate_nginx || return 1
+
+    # Verify that HTTPS reaches the actual HP 6033A application.
+    if ! "$APP_DIR/venv/bin/python" - "$CONTROLLER_HOST" <<'PYVERIFY'
+import json
+import ssl
+import sys
+import urllib.request
+
+host = sys.argv[1]
+url = f"https://{host}/api/status"
+
+try:
+    context = ssl._create_unverified_context()
+    with urllib.request.urlopen(url, context=context, timeout=15) as response:
+        if response.status != 200:
+            raise RuntimeError(f"Unexpected HTTP status: {response.status}")
+        status = json.load(response)
+
+    required = {"gpib_connected", "gpib_status", "mode"}
+    if not isinstance(status, dict) or not required.issubset(status):
+        raise RuntimeError("Unexpected controller status response")
+
+    print("HTTPS controller status verification passed.")
+except Exception as exc:
+    print(f"ERROR: HTTPS controller verification failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+PYVERIFY
+    then
+        return 1
+    fi
+
+    # Enable automatic startup only after successful HTTPS verification.
+    SERVICE_ENABLED_BY_INSTALLER=true
+    if ! sudo systemctl enable hp6033a.service; then
+        echo "ERROR: Could not enable automatic startup." >&2
+        return 1
+    fi
+
+    echo
+    echo "========================================"
+    echo " HP 6033A INSTALLATION SUCCESSFUL"
+    echo "========================================"
+    echo "Controller URL: https://${CONTROLLER_HOST}/"
+    echo "Your browser may warn about the self-signed certificate."
+    echo "Use your configured controller credentials for protected controls."
 }
 
-# Main entry point will be enabled after final review.
-# main "$@"
 
 rollback_nginx_activation() {
     echo "Checking Nginx rollback requirements..." >&2
@@ -989,3 +1069,8 @@ rollback_nginx_activation() {
 
     echo "Nginx rollback assessment completed." >&2
 }
+
+# Start installation only when this script is executed directly.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

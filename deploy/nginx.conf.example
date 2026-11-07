@@ -17,7 +17,7 @@ server {
         allow LAN_SUBNET;
         deny all;
 
-        return 301 https://CONTROLLER_HOST$request_uri;
+        return 403;
     }
 }
 
