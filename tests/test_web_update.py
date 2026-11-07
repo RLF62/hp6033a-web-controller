@@ -296,3 +296,12 @@ class TransactionTests(SupervisorFixture):
 
     def test_web_worker_rolls_back_on_failed_health(self):
         self.run_transaction(True)
+
+
+class HelperUnitTests(unittest.TestCase):
+    def test_nginx_validation_has_bind_service_capability(self):
+        unit = (ROOT / "deploy/hp6033a-update.service").read_text()
+        capabilities = next(line.split("=", 1)[1].split() for line in unit.splitlines()
+                            if line.startswith("CapabilityBoundingSet="))
+        # nginx -t can attempt to bind configured privileged listen ports.
+        self.assertIn("CAP_NET_BIND_SERVICE", capabilities)

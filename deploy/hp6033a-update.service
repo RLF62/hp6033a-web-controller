@@ -17,7 +17,7 @@ StateDirectoryMode=0700
 ProtectSystem=full
 PrivateTmp=yes
 NoNewPrivileges=yes
-CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE
 Restart=on-failure
 RestartSec=5s
 
