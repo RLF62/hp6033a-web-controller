@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Installation | HP 6033A</title><link rel="stylesheet" href="guide.css"></head>
+<body><main id="top"><header><p class="eyebrow">HP 6033A controller documentation</p>
+<h1>Installation</h1><p class="muted">Rebuild the controller on a fresh Raspberry Pi OS installation.</p>
+<nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
+<nav aria-label="Documentation"><a href="/docs/">Guide home</a><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></header><nav aria-label="On this page"><a href="#prep">Prepare the OS and staging folder</a><a href="#config">Prepare site configuration and credentials</a><a href="#installer">Fresh installation script</a><a href="#verify">Verification script</a></nav><section id="prep"><h2>Prepare the OS and staging folder</h2>
+<ol><li>Use Raspberry Pi Imager to write Raspberry Pi OS Lite (64-bit, Debian 13 baseline) to a spare microSD card. Set up Wi-Fi, SSH, a hostname and the <code>pi</code> account. The existing controller uses <code>hp6033a</code> and <code>192.168.1.100</code>. Give the spare Pi a different reserved address while both are online.</li>
+<li>Connect over SSH and check <code>uname -m</code> for <code>aarch64</code>. The inspected deployment used Python 3.13.5.</li>
+<li>On the new Pi, prepare a staging folder outside <code>/home/pi/hp6033a</code>. Copy <code>app.py</code>, <code>requirements-backup.txt</code>, <code>templates/</code>, <code>docs/</code>, and <code>static/</code> from a known-good source or backup. Include <code>config.json</code> if you need saved presets.</li>
+<li>Copy <code>/etc/systemd/system/hp6033a.service</code>, <code>/etc/nginx/sites-available/hp6033a</code>, and <code>/etc/udev/rules.d/99-usbgpib.rules</code> from the release into staging as <code>systemd.service</code>, <code>nginx.conf</code>, and <code>usb.rules</code>.</li></ol>
+<p class="notice">The older <code>install.sh</code> found on the working Pi configures the retired simulation layout. Use the current unit, nginx site, and installation sequence below.</p>
+<p><a href="https://www.raspberrypi.com/documentation/computers/getting-started.html">Raspberry Pi Imager and first-boot instructions</a></p></section><section id="config"><h2>Prepare site configuration and credentials</h2>
+<ul><li><b>systemd.</b> Keep the application directory, one Gunicorn worker, the <code>pi:www-data</code> service identity, and the socket at <code>/run/hp6033a/gunicorn.sock</code>.</li>
+<li><b>nginx.</b> In the staged site configuration, update the HTTPS redirect, permitted subnet and exact control Origin for the new Pi. Keep Basic authentication on <code>/api/control/</code> and the Unix socket upstream.</li>
+<li><b>TLS.</b> Provision a matching certificate and private key as <code>/etc/nginx/ssl/hp6033a.crt</code> and <code>/etc/nginx/ssl/hp6033a.key</code>. Set the private key to root ownership and mode 0600. The certificate must cover the HTTPS address and be trusted by the browser. For an IP URL, include an IP subject alternative name. Keep the private key outside the release archive.</li>
+<li><b>USB.</b> The deployed rule grants <code>plugdev</code> access to the USB device and its USBTMC node for adapter ID <code>03eb:2065</code>. Confirm the replacement adapter ID with <code>lsusb</code> and update the rule only if required. Match the discovered USB VISA resource to <code>GPIB_RESOURCE</code> in <code>app.py</code>.</li></ul>
+<p>The installer creates a bcrypt controller credential interactively and copies the record into the separate Flask and nginx password files. The credentials are separate from SSH.</p>
+<p>The pinned versions come from <code>requirements-backup.txt</code>. Direct dependencies recorded on the working Pi include Flask 3.1.3, Gunicorn 26.2.0, PyVISA 1.16.2, PyVISA-py 0.8.1, PyUSB 1.3.1, pyserial 3.5, and bcrypt 5.0.0.</p></section><section id="installer"><h2>Fresh installation script</h2><p>Copy this block to <code>install-fresh.sh</code> and run it as <code>pi</code> with the prepared staging folder's <b>absolute</b> path. Use it on a dedicated fresh Pi. A failure can leave a partial installation. Review the failed step before retrying. This script has not been executed on a fresh Pi.</p><pre><code>#!/usr/bin/env bash
+set -euo pipefail
+app=/home/pi/hp6033a
+stage=${1:?Usage: install-fresh.sh /path/to/prepared-staging}
+[[ $(id -un) == pi ]]
+[[ ! -e &quot;$app&quot; ]]
+[[ ! -e /etc/systemd/system/hp6033a.service ]]
+[[ ! -e /etc/nginx/sites-available/hp6033a ]]
+[[ ! -e /etc/nginx/sites-enabled/hp6033a ]]
+for file in app.py requirements-backup.txt systemd.service nginx.conf usb.rules; do
+  [[ -f &quot;$stage/$file&quot; ]]
+done
+for dir in templates docs static; do [[ -d &quot;$stage/$dir&quot; ]]; done
+sudo test -s /etc/nginx/ssl/hp6033a.crt
+sudo test -s /etc/nginx/ssl/hp6033a.key
+sudo apt-get update
+sudo apt-get install -y python3-venv nginx apache2-utils \
+  openssl libusb-1.0-0 usbutils curl
+install -d -m 0755 &quot;$app&quot;
+cp -r -- &quot;$stage&quot;/{app.py,requirements-backup.txt,templates,docs,static} &quot;$app/&quot;
+if [[ -f &quot;$stage/config.json&quot; ]]; then
+  install -m 0600 &quot;$stage/config.json&quot; &quot;$app/config.json&quot;
+fi
+cd &quot;$app&quot;
+python3 -m venv venv
+venv/bin/python -m pip install -r requirements-backup.txt
+venv/bin/python -m pip check
+venv/bin/python -c &#x27;import flask, gunicorn, pyvisa, usb, serial, bcrypt&#x27;
+(umask 077; htpasswd -B -c .control_htpasswd hpcontrol)
+sudo install -o root -g www-data -m 0640 \
+  .control_htpasswd /etc/nginx/hp6033a.htpasswd
+sudo usermod -aG plugdev,dialout pi
+sudo install -m 0644 &quot;$stage/usb.rules&quot; /etc/udev/rules.d/99-usbgpib.rules
+sudo udevadm control --reload-rules
+sudo install -m 0644 &quot;$stage/systemd.service&quot; /etc/systemd/system/hp6033a.service
+sudo install -m 0644 &quot;$stage/nginx.conf&quot; /etc/nginx/sites-available/hp6033a
+if [[ -L /etc/nginx/sites-enabled/default ]]; then
+  sudo unlink /etc/nginx/sites-enabled/default
+fi
+sudo ln -s /etc/nginx/sites-available/hp6033a /etc/nginx/sites-enabled/hp6033a
+sudo nginx -t
+sudo systemctl daemon-reload
+sudo systemctl enable --now hp6033a nginx
+sudo systemctl reload nginx</code></pre></section><section id="verify"><h2>Verification script</h2><p>After installation, reconnect the USB adapter to apply the udev rules and open a fresh SSH session. Save the block below as <code>verify.sh</code>. Run it from a trusted client with Bash, curl and Python 3. Add <code>--require-gpib</code> during commissioning with the adapter and supply connected.</p><pre><code>#!/usr/bin/env bash
+set -euo pipefail
+base=${1:?Usage: verify.sh https://PI_ADDRESS [--require-gpib]}
+case &quot;$base&quot; in https://*) ;; *) echo &quot;Use the HTTPS URL&quot; &gt;&amp;2; exit 2;; esac
+base=${base%/}
+for route in / /classic-dual /docs/ /static/docs/project.html \
+    /static/docs/commands.html /static/docs/installation.html \
+    /static/docs/recovery.html; do
+  curl -fsS --max-time 10 -o /dev/null &quot;$base$route&quot;
+  printf &#x27;OK %s\n&#x27; &quot;$route&quot;
+done
+curl -fsS --max-time 25 &quot;$base/api/status&quot; | python3 -c &#x27;
+import json, sys
+data = json.load(sys.stdin)
+print(&quot;Mode:&quot;, data[&quot;mode&quot;])
+print(&quot;GPIB:&quot;, data[&quot;gpib_status&quot;])
+if sys.argv[1] == &quot;--require-gpib&quot; and not data[&quot;gpib_connected&quot;]:
+    raise SystemExit(1)
+&#x27; &quot;${2:-}&quot;</code></pre><p>The script performs GET requests and reports GPIB status. With output off and the load disconnected, compare reported measurements and setpoints against the physical panel. Test hardware control separately with the supply attended.</p></section>
+<footer><p class="muted">Deployed baseline inspected November 5, 2026.</p><a href="#top">Back to top</a></footer>
+</main></body></html>

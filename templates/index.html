@@ -1,0 +1,1167 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HP 6033A Controller</title><link rel="icon" href="/static/hp6033a.ico" sizes="any"><link rel="icon" type="image/png" sizes="192x192" href="/static/hp6033a-192.png"><link rel="apple-touch-icon" href="/static/hp6033a-192.png"><link rel="manifest" href="/static/manifest.webmanifest"><meta name="theme-color" content="#101723"><style>
+:root{font-family:system-ui,Segoe UI,sans-serif;color:#e9f0fa;background:#101723}*{box-sizing:border-box}body{margin:0;padding:18px}.wrap{max-width:850px;margin:auto}.head,.split,.pair{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:27px}h2{font-size:17px;margin:8px 0 16px}.muted{color:#9baabe;font-size:13px}.badge{border:1px solid #edba62;color:#edba62;border-radius:24px;padding:6px 10px;font-size:12px}.card{background:#1a2637;border:1px solid #304057;border-radius:15px;padding:18px;margin:16px 0}.readings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.reading{background:#0e1b2b;border-radius:12px;padding:17px}.big{font-size:clamp(28px,7vw,48px);font-weight:750;font-variant-numeric:tabular-nums}.green{color:#5ce5a4}.blue{color:#72bdff}.selected{border-color:#59e3a4!important;box-shadow:inset 0 0 0 1px #59e3a4;background:#174c48!important}.statusrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.pill{border:1px solid #4b607b;border-radius:16px;padding:5px 10px;font-size:12px}.warn{color:#f4c16b}.stepselect{background:#0e1b2b;color:#fff;border:1px solid #59708c;border-radius:7px;padding:9px}.graph{width:100%;height:230px;background:#0e1b2b;border:1px solid #304057;border-radius:10px;display:block}.legend{display:flex;gap:20px;flex-wrap:wrap;margin:10px 0;font-size:13px}.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}button{cursor:pointer;background:#263b55;color:#f0f6ff;border:1px solid #46617e;border-radius:9px;padding:12px 10px;font-size:15px}button:hover{background:#345272}button:focus-visible{outline:3px solid #88bbff}.danger{background:#9d3036;border-color:#e66a70}.on{background:#146c4e;border-color:#4ed6a2}.inputrow{display:flex;align-items:center;gap:10px}input[type=number]{background:#0e1b2b;border:1px solid #59708c;border-radius:8px;padding:10px;color:white;width:110px;font-size:18px}input[type=range]{width:100%;accent-color:#69b4fa;margin:16px 0}.foot{padding:15px 0;text-align:center}a{color:#9ac9ff}.note{color:#e8bf76;font-size:13px}#msg{min-height:20px;color:#f6ca82}@media(max-width:600px){.readings{grid-template-columns:repeat(2,minmax(0,1fr))}.readings .reading:last-child{grid-column:1/-1}}@media(max-width:460px){.card{padding:13px}.reading{padding:12px}.presets{gap:6px}button{padding:11px 5px;font-size:13px}}
+.ok{color:#5ce5a4}.bad{color:#f4c16b}.diag{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.diag>div{background:#0e1b2b;border-radius:9px;padding:12px}.diag strong{display:block;margin-top:5px;overflow-wrap:anywhere}@media(max-width:480px){.diag{grid-template-columns:1fr}}
+</style>
+<style>
+.card-top-controls { margin:-8px -8px 8px 0; gap:8px; flex-wrap:nowrap; }
+.card-top-controls h2 { margin:0; }
+.card-top-controls button,.card-top-controls select { flex-shrink:0; }
+.card-top-controls + .note { margin:0 0 10px; }
+.layout-toolbar {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0;
+}
+.layout-toolbar button[hidden] { display:none; }
+.layout-editing main section.card {
+  outline:1px dashed #72bdff;
+  cursor:default;
+}
+.layout-handle {
+  display:none;
+  margin:0 0 10px;
+  padding:7px 10px;
+  border:1px dashed #72bdff;
+  border-radius:7px;
+  color:#72bdff;
+  cursor:grab;
+  user-select:none;
+  touch-action:none;
+}
+.layout-editing .layout-handle { display:block; }
+.layout-handle:active { cursor:grabbing; }
+.layout-dragging { opacity:.45; }
+.layout-target { outline:2px solid #5ce5a4 !important; }
+
+
+/* Wider desktop dashboard */
+@media (min-width: 701px) {
+  .wrap {
+    max-width: 1100px;
+  }
+}
+
+/* Customizable dashboard grid */
+@media (min-width: 701px) {
+  main.wrap {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+    align-items: stretch;
+  }
+
+  main.wrap > section.card {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  main.wrap > section.card[data-layout-width="half"] {
+    grid-column: span 1;
+  }
+
+  main.wrap > footer {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  main.wrap > section.card {
+    width: 100%;
+  }
+}
+
+
+.layout-tile-controls {
+  display:none;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.layout-editing .layout-tile-controls {
+  display:flex;
+}
+.layout-editing .layout-tile-controls .layout-handle {
+  display:block;
+  flex:1;
+  margin:0;
+}
+.layout-width-button {
+  white-space:nowrap;
+  padding:7px 10px;
+  font-size:13px;
+}
+
+.layout-hidden {
+  display:none !important;
+}
+.layout-editing main.wrap > section.layout-hidden {
+  display:block !important;
+  opacity:.55;
+}
+.layout-editing main.wrap > section.readings.layout-hidden {
+  display:grid !important;
+}
+.layout-visibility-button {
+  white-space:nowrap;
+  padding:7px 10px;
+  font-size:13px;
+}
+@media(max-width:460px){
+  .layout-editing .layout-tile-controls {
+    flex-wrap:wrap;
+  }
+}
+
+/* Individual reading customization */
+.reading-layout-controls {
+  display:none;
+  gap:5px;
+  margin-bottom:10px;
+}
+
+.layout-editing .reading-layout-controls {
+  display:flex;
+}
+
+.reading-layout-controls button {
+  flex:1;
+  padding:6px 4px;
+  font-size:12px;
+}
+
+.reading-hidden {
+  display:none !important;
+}
+
+.layout-editing .reading.reading-hidden {
+  display:block !important;
+  opacity:.5;
+}
+</style>
+
+<style>
+.staged-controls {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid #405570;
+  border-radius: 12px;
+  background: #1a2637;
+}
+#staged-status {
+  margin-bottom: 12px;
+  color: #f4c16b;
+  font-size: 14px;
+}
+.staged-buttons {
+  display: flex;
+  gap: 12px;
+}
+.staged-buttons button {
+  flex: 1;
+  min-height: 48px;
+  font-weight: 700;
+}
+.preset-apply { margin-top:10px; }
+.preset-apply button { flex:0 1 auto; min-height:0; }
+.preset-apply-feedback:empty { display:none; }
+[data-apply-settings] {
+  background: #146c4e;
+  border-color: #4ed6a2;
+}
+.staged-buttons button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+@media(max-width:460px) {
+  .staged-controls {padding:12px}
+  .staged-buttons {gap:8px}
+}
+</style>
+
+<style id="dual-output-button-styles">
+.output-button-group {
+ display:flex;
+ gap:12px;
+ flex-wrap:wrap;
+ align-items:stretch;
+}
+.output-button-group button {
+ flex:1 1 135px;
+ min-height:58px;
+ padding:12px 16px;
+ font-weight:750;
+ font-size:15px;
+ border-radius:10px;
+}
+#out {
+ background:#126b49;
+ color:white;
+ border:1px solid #36a877;
+}
+#out_off {
+ background:#b32b36;
+ color:white;
+ border:1px solid #f06b73;
+}
+#out:disabled,
+#out_off:disabled {
+ opacity:.42;
+ cursor:not-allowed;
+}
+@media(max-width:700px) {
+ .output-button-group {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  width:100%;
+ }
+ .output-button-group button {
+  min-width:0;
+  min-height:66px;
+  padding:10px 6px;
+  font-size:14px;
+ }
+}
+</style>
+
+</head><body><main class="wrap"><header class="head"><div><h1>HP 6033A</h1><div class="muted">Wi-Fi Power Supply Controller &middot; <a href="/classic-dual" style="color: inherit; text-decoration: underline;">Classic View</a></div></div><span class="badge" id="mode_badge">LIVE GPIB · READ ONLY</span></header>
+<div id="layout-toolbar" class="layout-toolbar">
+  <button id="layout-customize" type="button">Customize Layout</button>
+  <button id="layout-save" type="button" hidden>Save Layout</button>
+  <button id="layout-reset" type="button" hidden>Reset Layout</button>
+  <button id="layout-show-all" type="button" hidden>Show All Windows</button>
+</div>
+<section class="readings card"><div class="reading"><div class="muted">OUTPUT VOLTAGE</div><div class="big green"><span id="mv">0.00</span><small> V</small></div></div><div class="reading"><div class="muted">OUTPUT CURRENT</div><div class="big blue"><span id="mi">0.00</span><small> A</small></div></div><div class="reading"><div class="muted">OUTPUT POWER</div><div class="big"><span id="mw">0.00</span><small> W</small></div></div></section><section class="card"><div class="statusrow"><span class="pill" id="reg">REGULATION: OFF</span><span class="pill warn" id="gpib">GPIB: NOT CONNECTED</span><span class="muted">Live GPIB readings. CV/CC and output state are not yet queried.</span></div></section><section class="card">
+<div class="split">
+  <div>
+    <h2>GPIB v2 Interface Status</h2>
+    <div class="muted">HP 6033A · USB-to-GPIB interface</div>
+  </div>
+  <button id="gpib-test" onclick="refreshGpib()">Refresh Status</button>
+</div>
+<div class="statusrow">
+  <span class="pill warn" id="gpib-v2-state">GPIB: CHECKING...</span>
+  <span class="muted" id="gpib-v2-error" role="status"></span>
+</div>
+<div class="diag">
+  <div><span class="muted">Interface</span><strong>GPIB v2 / USB</strong></div>
+  <div><span class="muted">Instrument</span><strong>HP 6033A</strong></div>
+  <div><span class="muted">Output state</span><strong id="gpib-v2-output">—</strong></div>
+  <div><span class="muted">Last successful response</span><strong id="gpib-v2-time">—</strong></div>
+</div>
+</section><section class="card"><div class="split card-top-controls"><h2>Voltage presets</h2><button onclick="edit('voltage')">Edit presets</button></div><p class="note">Select a preset to stage it, then use APPLY SETTINGS on any settings card. Editing a saved preset does not program the supply.</p><div class="presets" id="vp"></div><div class="staged-buttons preset-apply"><button type="button" data-apply-settings disabled>APPLY SETTINGS</button></div><p class="muted preset-apply-feedback" data-apply-feedback="voltage" role="status"></p></section><section class="card"><div class="split card-top-controls"><h2>Current limit presets</h2><button onclick="edit('current')">Edit presets</button></div><div class="presets" id="cp"></div><div class="staged-buttons preset-apply"><button type="button" data-apply-settings disabled>APPLY SETTINGS</button></div><p class="muted preset-apply-feedback" data-apply-feedback="current" role="status"></p></section><section class="card"><div class="split card-top-controls"><h2>Manual settings</h2><select class="stepselect" id="vstep" aria-label="Voltage adjustment step"><option value="0.01">0.01 V</option><option value="0.1" selected>0.1 V</option><option value="1">1 V</option></select></div><div class="pair"><label for="v">Voltage setpoint</label><div class="inputrow"><button id="vminus" onclick="step('voltage',-Number($('vstep').value))">−</button><input id="v" type="number" min="0" max="{{ limits.voltage }}" step="0.1" onchange="setpoint('voltage',this.value)"><span>V</span><button id="vplus" onclick="step('voltage',Number($('vstep').value))">+</button></div></div><input id="vr" aria-label="Voltage slider" type="range" min="0" max="{{ limits.voltage }}" step="0.1" onchange="setpoint('voltage',this.value)"><div class="pair"><label for="i">Current limit</label><div class="inputrow"><button id="iminus" onclick="step('current',-.1)">−</button><input id="i" type="number" min="0" max="{{ limits.current }}" step="0.1" onchange="setpoint('current',this.value)"><span>A</span><button id="iplus" onclick="step('current',.1)">+</button></div></div><input id="ir" aria-label="Current slider" type="range" min="0" max="{{ limits.current }}" step="0.1" onchange="setpoint('current',this.value)"><p class="muted">HP 6033A rated ranges: 0–20 V, 0–30 A, 200 W. Remote programming and output OFF are required to apply settings.</p>
+<div id="staged-controls" class="staged-controls">
+  <div id="staged-status" role="status" aria-live="polite">
+    No pending adjustments
+  </div>
+  <div class="staged-buttons">
+    <button id="staged-reset" type="button" disabled>RESET</button>
+    <button id="staged-apply" type="button" data-apply-settings disabled>APPLY SETTINGS</button>
+  </div>
+</div>
+<p id="apply-feedback" class="muted" data-apply-feedback role="status"></p>
+</section>
+<section class="card"><div class="split"><h2>Live history (GPIB)</h2><button onclick="clearHistory()">Clear graph</button></div><div class="legend"><span class="green">● Voltage (V)</span><span class="blue">● Current (A)</span><span class="muted">Last 5 minutes · browser session only</span></div><canvas id="history" class="graph" aria-label="Voltage and current history"></canvas><p class="muted">Voltage and current use separate 0–20 V and 0–30 A scales. Measurements are read directly from the HP 6033A.</p></section><section class="card"><div class="split"><div><h2>Output control</h2><div class="note" id="control_status">Remote programming: DISABLED</div>
+<div style="margin-top:12px">
+<button id="remote_enable" type="button" onclick="toggleRemoteControl()">
+Enable Remote Control
+</button>
+</div></div><div class="output-button-group">
+ <button id="out" type="button" onclick="toggle()">
+  OUTPUT ON
+ </button>
+ <button id="out_off" type="button" onclick="turnOutputOff()">
+  OUTPUT OFF
+ </button>
+</div></div>{% include "control_confirmation.html" %}
+<p id="setpoints" class="muted"></p><p id="msg" role="status"></p></section><section class="card"><div class="split"><div><h2>Front panel lockout</h2><div class="muted">Request GPIB Local Lockout (LLO) to prevent front-panel changes once hardware support is installed.</div></div><label class="inputrow"><input type="checkbox" id="llo" onchange="post({front_panel_lockout_requested:this.checked})"><span>Request lockout</span></label></div><div class="statusrow"><span class="pill warn" id="llo_status">NOT APPLIED - SIMULATION ONLY</span></div><p class="note">Read-only mode: lockout changes are disabled. LLO disables the LCL/LOCAL return-to-local function while remote control is active. Actual lockout must be confirmed by the GPIB controller before displaying LOCKED.</p></section><footer class="foot"><a href="/docs/">Project documentation</a> · HP 6033A · live read-only</footer></main><script>
+const $=id=>document.getElementById(id);
+let s=null;let samples=[];
+let mobileDrafts={voltage:null,current:null};
+let mobileDirty={voltage:false,current:false};
+let mobileBusy=false;
+let mobileBlocked=false;
+const limits={{ limits | tojson }};
+let mobileAuthorization=null;
+
+function mobileAuthorize(){
+ if(mobileAuthorization)return Promise.resolve(mobileAuthorization);
+
+ return new Promise(resolve=>{
+  const dialog=document.getElementById('mobile-auth-dialog');
+  const form=document.getElementById('mobile-auth-form');
+  const user=document.getElementById('mobile-auth-user');
+  const pass=document.getElementById('mobile-auth-pass');
+
+  let settled=false;
+
+  function finish(value){
+   if(settled)return;
+   settled=true;
+   dialog.removeEventListener('close',onClose);
+   form.onsubmit=null;
+   resolve(value);
+  }
+
+  function onClose(){
+   finish(null);
+  }
+
+  dialog.addEventListener('close',onClose);
+
+  form.onsubmit=e=>{
+   e.preventDefault();
+   if(!user.value.trim()||!pass.value)return;
+
+   mobileAuthorization='Basic '+btoa(
+    unescape(encodeURIComponent(user.value.trim()+':'+pass.value))
+   );
+
+   const authorization=mobileAuthorization;
+   finish(authorization);
+   dialog.close('authorized');
+  };
+
+  dialog.showModal();
+ });
+}
+function pendingMobile(){
+ return mobileDirty.voltage||mobileDirty.current;
+}
+function draftValue(k){
+ return mobileDirty[k]?mobileDrafts[k]:s[k];
+}
+function renderMobileDrafts(){
+ if(!s)return;
+ for(const [k,input,slider] of [
+  ['voltage','v','vr'],['current','i','ir']
+ ]){
+  const value=draftValue(k);
+  if(Number.isFinite(value)){
+   if(document.activeElement!==$(input))
+    $(input).value=value.toFixed(k==='voltage'?2:3);
+   if(document.activeElement!==$(slider)) $(slider).value=value;
+  }
+ }
+ const pending=pendingMobile();
+ $('staged-status').textContent=pending
+  ? 'Pending: '+['voltage','current']
+      .filter(k=>mobileDirty[k])
+      .map(k=>k+' '+mobileDrafts[k].toFixed(3)+(k==='voltage'?' V':' A'))
+      .join(' / ')
+  : 'No pending adjustments';
+ $('staged-reset').disabled=!pending||mobileBusy;
+ const applyDisabled=
+  !pending||mobileBusy||mobileBlocked||
+  !s.gpib_connected||!s.remote_control_enabled||
+  s.output!==false;
+ for(const button of document.querySelectorAll('[data-apply-settings]'))
+  button.disabled=applyDisabled;
+ if((pending||mobileBusy||mobileBlocked)&&s.output===false)
+  $('out').disabled=true;
+}
+function showApplyFeedback(message,readbacks){
+ for(const item of document.querySelectorAll('[data-apply-feedback]')){
+  const key=item.dataset.applyFeedback;
+  item.textContent=readbacks&&key
+   ? (readbacks[key]?'Instrument confirmed: '+readbacks[key]:'')
+   : message;
+ }
+}
+function resetMobileDrafts(){
+ mobileDirty={voltage:false,current:false};
+ mobileDrafts={voltage:null,current:null};
+ render();
+ showApplyFeedback('Pending adjustments discarded');
+}
+document.getElementById('staged-reset').addEventListener('click',resetMobileDrafts);
+async function applyMobileDrafts(){
+ if(mobileBusy||mobileBlocked||!pendingMobile()||!s||
+    !s.gpib_connected||!s.remote_control_enabled||
+    s.output!==false)return;
+
+ const pending=['voltage','current']
+  .filter(k=>mobileDirty[k])
+  .map(k=>({key:k,value:mobileDrafts[k]}));
+
+ if(pending.some(p=>!Number.isFinite(p.value)||
+    p.value<0||p.value>limits[p.key])){
+  showApplyFeedback('Staged value exceeds safety limits');
+  return;
+ }
+
+ const description=pending.map(p=>
+  p.key+' '+p.value.toFixed(3)+(p.key==='voltage'?' V':' A')
+ ).join(' and ');
+
+ if(!confirmControl('Apply '+description+
+    ' to HP 6033A? Output must remain OFF.')){
+  showApplyFeedback('Apply cancelled. Staged values are still pending.');
+  return;
+ }
+
+ const authorization=await mobileAuthorize();
+ if(!authorization){
+  showApplyFeedback('Authorization cancelled. Staged values are still pending.');
+  return;
+ }
+
+ mobileBusy=true;
+ renderMobileDrafts();
+ showApplyFeedback('Applying and verifying hardware settings...');
+
+ const completed=[];
+ const readbacks={};
+ try{
+  for(const {key,value} of pending){
+   const statusResponse=await fetch('/api/status',{cache:'no-store'});
+   if(!statusResponse.ok)throw Error('Status verification failed');
+
+   const fresh=await statusResponse.json();
+   if(fresh.gpib_connected!==true||
+      fresh.remote_control_enabled!==true||
+      fresh.output!==false)
+    throw Error('Remote control unavailable or output not OFF');
+
+   const response=await fetch('/api/control/set',{
+    method:'POST',
+    headers:{
+     'Content-Type':'application/json',
+     'Authorization':authorization
+    },
+    body:JSON.stringify({key,value})
+   });
+
+   if(response.status===401){
+    mobileAuthorization=null;
+    throw Error('Credentials rejected');
+   }
+
+   const result=await response.json();
+   if(!response.ok||result.success!==true||
+      typeof result.actual!=='number'||
+      !Number.isFinite(result.actual)||
+      Math.abs(result.actual-value)>.005)
+    throw Error(key+': '+(result.error||'Hardware verification failed'));
+
+   completed.push(key);
+   readbacks[key]=key+' '+result.actual.toFixed(3)+(key==='voltage'?' V':' A');
+   mobileDirty[key]=false;
+   mobileDrafts[key]=null;
+  }
+
+  showApplyFeedback('Instrument confirmed: '+Object.values(readbacks).join(' and '),readbacks);
+
+ }catch(e){
+  mobileBlocked=true;
+  showApplyFeedback(
+   'Adjustment failed. Confirmed writes: '+
+   (completed.join(', ')||'none')+
+   '. '+e.message+
+   '. Check the instrument and reload before retrying.');
+ }finally{
+  mobileBusy=false;
+  try{await get()}catch(e){
+   $('msg').textContent='Status refresh failed: '+e.message;
+  }
+  renderMobileDrafts();
+ }
+}
+for(const button of document.querySelectorAll('[data-apply-settings]'))
+ button.addEventListener('click',applyMobileDrafts);
+async function get(){let r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw Error('Status unavailable');s=await r.json();render();updateGpibTile();record()}
+async function post(changes){try{let r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(changes)});let d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');s=d;render();record();$('msg').textContent='Preset settings saved'}catch(e){$('msg').textContent=e.message}}
+function render(){if(!s)return;
+const modeBadge = $('mode_badge');
+modeBadge.textContent = !s.gpib_connected
+    ? 'GPIB DISCONNECTED'
+    : s.remote_control_enabled
+        ? 'LIVE GPIB · CONTROL ENABLED'
+        : 'LIVE GPIB · READ ONLY';
+
+$('control_status').textContent =
+    'Remote programming: ' +
+    (s.remote_control_enabled ? 'ENABLED' : 'DISABLED');
+$('control_status').style.color =
+    s.remote_control_enabled ? '#5ce5a4' : '';
+$('remote_enable').textContent = s.remote_control_enabled
+    ? 'Disable Remote Control'
+    : 'Enable Remote Control';
+$('remote_enable').disabled = false;
+$('mv').textContent=s.gpib_connected?s.measured_voltage.toFixed(2):'—';$('mi').textContent=s.gpib_connected?s.measured_current.toFixed(2):'—';$('mw').textContent=s.gpib_connected?s.measured_power.toFixed(2):'—';$('reg').textContent='REGULATION: '+s.regulation;$('gpib').textContent='GPIB: '+s.gpib_status;$('llo').checked=false;$('llo').disabled=true;$('llo_status').textContent=(s.front_panel_lockout_requested?'REQUESTED · ':'NOT REQUESTED · ')+s.front_panel_lockout_status;$('v').disabled=!(s.remote_control_enabled && s.gpib_connected && s.output===false);$('vr').disabled=!(s.remote_control_enabled && s.gpib_connected && s.output===false);$('i').disabled=!(s.remote_control_enabled && s.gpib_connected && s.output===false);$('ir').disabled=!(s.remote_control_enabled && s.gpib_connected && s.output===false);$('out').textContent='OUTPUT ON';
+$('out_off').textContent='OUTPUT OFF';
+$('out').disabled=s.output!==false||!(
+    s.output===false &&
+    s.remote_control_enabled &&
+    s.gpib_connected &&
+    s.voltage>=0 && s.voltage<=limits.voltage &&
+    s.current>=0.001 && s.current<=limits.current
+);
+$('out_off').disabled=!(s.gpib_connected && s.output===true);
+$('out').className='';
+const canAdjust =
+    s.remote_control_enabled &&
+    s.gpib_connected &&
+    s.output === false && !mobileBusy && !mobileBlocked;
+
+for(const id of ['vminus','vplus','iminus','iplus']){
+    $(id).disabled = !canAdjust;
+}
+renderMobileDrafts();$('setpoints').textContent=`Setpoints: ${s.voltage.toFixed(2)} V / ${s.current.toFixed(2)} A · Output: ${s.output === true ? 'ON' : s.output === false ? 'OFF' : 'UNKNOWN'} · Measured power: ${s.measured_power.toFixed(2)} W`;renderPresetButtons(canAdjust);}
+function renderPresetButtons(canAdjust){
+ for(const [key,id,field] of [['voltage_presets','vp','voltage'],['current_presets','cp','current']]){
+  const container=$(id);
+  const presets=s[key];
+  const buttons=Array.from(container.children);
+  if(buttons.length!==presets.length ||
+     !buttons.every((button,index)=>button.dataset.value===String(presets[index]))){
+   container.replaceChildren(...presets.map(value=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.dataset.value=String(value);
+    button.textContent=value+' '+(field==='voltage'?'V':'A');
+    button.onclick=()=>setpoint(field,value);
+    return button;
+   }));
+  }
+  Array.from(container.children).forEach((button,index)=>{
+   const value=presets[index];
+   button.classList.toggle('selected',Math.abs(draftValue(field)-value)<0.005);
+   button.disabled=!canAdjust||!Number.isFinite(value)||value<0||value>limits[field];
+   button.title=button.disabled?'Remote authorization, output OFF, and an in-range value required':'Stage preset';
+  });
+ }
+}
+async function toggleRemoteControl(){
+    if(mobileBusy||mobileBlocked){
+        $('msg').textContent='Control changes locked during or after failed APPLY';
+        return;
+    }
+    const enabling = !s.remote_control_enabled;
+
+    if(enabling && !confirmControl(
+        'Enable remote programming? The power supply output must be OFF. ' +
+        `Setpoint limits are ${limits.voltage} V and ${limits.current} A.`
+    )) return;
+
+    const authorization=await mobileAuthorize();
+    if(!authorization)return;
+
+    const button = $('remote_enable');
+    button.disabled = true;
+
+    try {
+        const action = enabling ? 'enable' : 'disable';
+
+        const response = await fetch('/api/control/' + action, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            },
+            body: '{}'
+        });
+
+        if(response.status===401){
+            mobileAuthorization=null;
+            throw Error('Credentials rejected. Please authorize again.');
+        }
+        const result = await response.json();
+
+        if(!response.ok)
+            throw Error(result.error || 'Control request failed');
+
+        $('msg').textContent = result.message;
+        await get();
+
+    } catch(e) {
+        $('msg').textContent = e.message;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function setpoint(k,v){
+ const x=Number(v);
+ const max=limits[k];
+
+ if(!['voltage','current'].includes(k)||
+    String(v).trim()===''||
+    !Number.isFinite(x)||x<0||x>max){
+  $('msg').textContent='Setting outside permitted range';
+  renderMobileDrafts();
+  return;
+ }
+
+ if(!s||!s.gpib_connected||
+    !s.remote_control_enabled||
+    s.output!==false||mobileBusy||mobileBlocked){
+  $('msg').textContent='Remote enabled and output OFF required';
+  renderMobileDrafts();
+  return;
+ }
+
+ mobileDrafts[k]=x;
+ mobileDirty[k]=Math.abs(x-s[k])>0.0005;
+ render();
+ showApplyFeedback(mobileDirty[k]?'Staged. Press APPLY SETTINGS to program the supply.':'Matches the programmed setting.');
+}
+function unusedOldSetpoint(k,v){$('msg').textContent='Read-only mode: hardware changes disabled';return;let x=Number(v),max=k==='voltage'?20:30;if(!Number.isFinite(x)||x<0||x>max){$('msg').textContent='Out of range';render();return}post({[k]:x})}function step(k,amount){
+ const value=draftValue(k);
+ if(!Number.isFinite(value))return;
+ setpoint(k,Math.round((value+amount)*1000)/1000);
+}async function turnOutputOff(){
+ if(!s || !s.gpib_connected || s.output!==true){
+  $('msg').textContent='Output is not confirmed ON';
+  return;
+ }
+ await toggle();
+}
+
+async function toggle(){
+    if(!s || !s.gpib_connected || typeof s.output!=='boolean'){
+        $('msg').textContent='Cannot verify hardware output state';
+        return;
+    }
+
+    const turningOn=s.output===false;
+    if(!turningOn && document.activeElement===$('out')){
+        $('msg').textContent='Use OUTPUT OFF to disable the supply';
+        return;
+    }
+    if(turningOn&&(pendingMobile()||mobileBusy||mobileBlocked)){
+        $('msg').textContent='Apply or reset pending adjustments first';
+        return;
+    }
+
+    if(turningOn){
+        if(!s.remote_control_enabled ||
+           !Number.isFinite(s.voltage) ||
+           !Number.isFinite(s.current) ||
+           s.voltage<0 || s.voltage>limits.voltage ||
+           s.current<0.001 || s.current>limits.current){
+            $('msg').textContent='Output ON safety conditions not met';
+            return;
+        }
+
+        if(!confirmControl(
+            'Enable HP 6033A output at '+s.voltage.toFixed(3)+' V / '+
+            s.current.toFixed(3)+' A current limit?'
+        )) return;
+    }
+
+    const authorization=await mobileAuthorize();
+    if(!authorization)return;
+
+    const button=$('out');
+    button.disabled=true;
+
+    try{
+        const endpoint=turningOn?'/api/control/set':'/api/control/output-off';
+        const payload=turningOn?{key:'output',value:true}:{};
+
+        const response=await fetch(endpoint,{
+            method:'POST',
+            credentials:'same-origin',
+            headers:{
+                'Content-Type':'application/json',
+                'Authorization':authorization
+            },
+            body:JSON.stringify(payload)
+        });
+
+        if(response.status===401){
+            mobileAuthorization=null;
+            throw Error('Credentials rejected. Please authorize again.');
+        }
+        const result=await response.json();
+
+        if(!response.ok)
+            throw Error(result.error||'Output command failed');
+
+        $('msg').textContent=turningOn
+            ? 'Output ON command verified by hardware readback'
+            : result.message;
+
+    }catch(e){
+        $('msg').textContent=e.message;
+    }finally{
+        try{await get()}catch(e){
+            $('msg').textContent='Status refresh failed: '+e.message;
+            button.disabled=true;
+        }
+    }
+}function edit(k){let key=k+'_presets',values=[...s[key]];let index=prompt('Which preset button (1–6)?');if(index===null)return;let n=Number(index);if(!Number.isInteger(n)||n<1||n>6)return alert('Choose 1 through 6');let raw=prompt('New '+k+' preset:',values[n-1]);if(raw===null)return;let v=Number(raw),max=k==='voltage'?20:30;if(raw.trim()===''||!Number.isFinite(v)||v<0||v>max)return alert('Value must be between 0 and '+max);values[n-1]=v;post({[key]:values})}function record(){if(!s||!s.gpib_connected)return;let now=Date.now();samples.push({t:now,v:s.measured_voltage,i:s.measured_current});samples=samples.filter(p=>p.t>=now-300000).slice(-350);drawGraph()}
+function clearHistory(){samples=[];drawGraph()}
+function drawGraph(){const c=$('history'),rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1,w=Math.max(200,rect.width),h=230;c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);let ctx=c.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);const left=36,right=w-15,top=14,bottom=h-26;ctx.font='11px system-ui';ctx.strokeStyle='#34475d';ctx.fillStyle='#9baabe';for(let k=0;k<=4;k++){let y=top+(bottom-top)*k/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.fillText(String(20-5*k),4,y+4)}ctx.fillText('V',5,12);ctx.fillText('5 min ago',left,bottom+17);ctx.fillText('Now',right-22,bottom+17);let now=Date.now();for(const [key,max,color] of [['v',20,'#5ce5a4'],['i',30,'#72bdff']]){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();samples.forEach((p,j)=>{let x=left+(right-left)*Math.max(0,1-(now-p.t)/300000),y=bottom-(bottom-top)*p[key]/max;j?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}}
+function updateGpibTile(){
+  if(!s)return;
+  const connected=s.gpib_connected===true;
+  const state=$('gpib-v2-state');
+  state.textContent=connected?'GPIB: CONNECTED':'GPIB: DISCONNECTED';
+  state.className='pill '+(connected?'ok':'warn');
+  $('gpib-v2-output').textContent=
+    !connected?'UNKNOWN':s.output===true?'ON':s.output===false?'OFF':'UNKNOWN';
+  if(connected){
+    $('gpib-v2-time').textContent=new Date().toLocaleTimeString();
+  }
+  $('gpib-v2-error').textContent=connected?'':(s.gpib_status||'');
+}
+async function refreshGpib(){
+  const b=$('gpib-test');
+  b.disabled=true;
+  b.textContent='Refreshing...';
+  try{
+    await get();
+  }catch(e){
+    $('gpib-v2-state').textContent='GPIB: UNKNOWN';
+    $('gpib-v2-state').className='pill warn';
+    $('gpib-v2-error').textContent=e.message;
+  }finally{
+    b.disabled=false;
+    b.textContent='Refresh Status';
+  }
+}
+window.addEventListener('resize',drawGraph);get().catch(e=>$('msg').textContent=e.message);setInterval(()=>get().catch(e=>{$('gpib').textContent='GPIB: UNKNOWN';$('msg').textContent=e.message}),2000);
+
+(function(){
+  const main=document.querySelector('main.wrap');
+  const sections=[...main.querySelectorAll(':scope > section.card')];
+  const original=sections.map((_,i)=>'tile-'+(i+1));
+  let editing=false;
+  let dragged=null;
+  let currentMode=window.matchMedia('(max-width: 700px)').matches?'mobile':'desktop';
+
+  sections.forEach((section,i)=>{
+    section.dataset.layoutId=original[i];
+
+    const handle=document.createElement('div');
+    handle.className='layout-handle';
+    handle.textContent='☰ Drag to move';
+    handle.draggable=true;
+    const widthButton=document.createElement('button');
+    widthButton.type='button';
+    widthButton.className='layout-width-button';
+    widthButton.textContent='Full width';
+
+    const controls=document.createElement('div');
+    controls.className='layout-tile-controls';
+    const visibilityButton=document.createElement('button');
+    visibilityButton.type='button';
+    visibilityButton.className='layout-visibility-button';
+    visibilityButton.textContent='Hide';
+
+    controls.append(handle,widthButton,visibilityButton);
+    section.prepend(controls);
+
+    visibilityButton.addEventListener('click',()=>{
+      const hidden=section.dataset.layoutHidden==='true';
+      section.dataset.layoutHidden=hidden?'false':'true';
+      updateTileVisibility();
+    });
+
+    widthButton.addEventListener('click',()=>{
+      const half=section.dataset.layoutWidth==='half';
+      section.dataset.layoutWidth=half?'full':'half';
+      widthButton.textContent=half?'Full width':'Half width';
+    });
+
+    handle.addEventListener('dragstart',e=>{
+      if(!editing){e.preventDefault();return;}
+      dragged=section;
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',section.dataset.layoutId);
+      section.classList.add('layout-dragging');
+    });
+
+    handle.addEventListener('dragend',()=>{
+      section.classList.remove('layout-dragging');
+      sections.forEach(s=>s.classList.remove('layout-target'));
+      dragged=null;
+    });
+
+    section.addEventListener('dragover',e=>{
+      if(!editing||!dragged||dragged===section)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      section.classList.add('layout-target');
+    });
+
+    section.addEventListener('dragleave',()=>{
+      section.classList.remove('layout-target');
+    });
+
+    section.addEventListener('drop',e=>{
+      if(!editing||!dragged||dragged===section)return;
+      e.preventDefault();
+      const rect=section.getBoundingClientRect();
+      const after=e.clientY>rect.top+rect.height/2;
+      main.insertBefore(dragged,after?section.nextSibling:section);
+      sections.forEach(s=>s.classList.remove('layout-target'));
+    });
+  });
+
+
+  // Touchscreen layout dragging.
+  let touchDrag=null;
+
+  function touchLayoutMove(e){
+    if(!touchDrag)return;
+
+    if(e.cancelable)e.preventDefault();
+
+    const target=document.elementFromPoint(e.clientX,e.clientY);
+    const section=target&&target.closest('main.wrap > section.card');
+
+    sections.forEach(s=>s.classList.remove('layout-target'));
+
+    if(section&&section!==touchDrag.section){
+      section.classList.add('layout-target');
+      touchDrag.target=section;
+      const rect=section.getBoundingClientRect();
+      touchDrag.after=e.clientY>rect.top+rect.height/2;
+    }else{
+      touchDrag.target=null;
+    }
+  }
+
+  sections.forEach(section=>{
+    const handle=section.querySelector('.layout-handle');
+
+    handle.addEventListener('pointerdown',e=>{
+      if(!editing||e.pointerType==='mouse')return;
+
+      e.preventDefault();
+
+      touchDrag={
+        section:section,
+        target:null,
+        after:false
+      };
+
+      handle.setPointerCapture(e.pointerId);
+      section.classList.add('layout-dragging');
+    });
+
+    handle.addEventListener('pointermove',e=>{
+      if(!touchDrag||touchDrag.section!==section)return;
+      touchLayoutMove(e);
+    });
+
+    handle.addEventListener('pointerup',e=>{
+      if(!touchDrag||touchDrag.section!==section)return;
+
+      if(touchDrag.target){
+        main.insertBefore(
+          section,
+          touchDrag.after
+            ?touchDrag.target.nextSibling
+            :touchDrag.target
+        );
+      }
+
+      section.classList.remove('layout-dragging');
+      sections.forEach(s=>s.classList.remove('layout-target'));
+      touchDrag=null;
+    });
+
+    handle.addEventListener('pointercancel',()=>{
+      if(touchDrag&&touchDrag.section===section){
+        section.classList.remove('layout-dragging');
+        sections.forEach(s=>s.classList.remove('layout-target'));
+        touchDrag=null;
+      }
+    });
+  });
+
+  const toolbar=document.getElementById('layout-toolbar');
+
+  function applyOrder(order){
+    const lookup=new Map(sections.map(s=>[s.dataset.layoutId,s]));
+    const sorted=[...new Set([...order,...original])];
+    const footer=main.querySelector(':scope > footer');
+    sorted.forEach(id=>{
+      const section=lookup.get(id);
+      if(section){
+        main.insertBefore(section,footer);
+      }
+    });
+  }
+
+
+  function saveTileWidths(){
+    const widths={};
+    sections.forEach(s=>{
+      widths[s.dataset.layoutId]=s.dataset.layoutWidth||'full';
+    });
+    localStorage.setItem(storageKey()+'-widths',JSON.stringify(widths));
+  }
+
+  function loadTileWidths(){
+    let widths={};
+    try{
+      widths=JSON.parse(localStorage.getItem(storageKey()+'-widths')||'{}');
+    }catch(e){}
+
+    sections.forEach(s=>{
+      const width=widths[s.dataset.layoutId]==='half'?'half':'full';
+      s.dataset.layoutWidth=width;
+      s.querySelector('.layout-width-button').textContent=
+        width==='half'?'Half width':'Full width';
+    });
+  }
+
+  function updateTileVisibility(){
+    sections.forEach(s=>{
+      const hidden=s.dataset.layoutHidden==='true';
+      s.classList.toggle('layout-hidden',hidden);
+      s.querySelector('.layout-visibility-button').textContent=
+        hidden?'Show':'Hide';
+    });
+  }
+
+  function saveTileVisibility(){
+    const visibility={};
+    sections.forEach(s=>{
+      visibility[s.dataset.layoutId]=s.dataset.layoutHidden==='true';
+    });
+    localStorage.setItem(
+      storageKey()+'-visibility',
+      JSON.stringify(visibility)
+    );
+  }
+
+  function loadTileVisibility(){
+    let visibility={};
+    try{
+      visibility=JSON.parse(
+        localStorage.getItem(storageKey()+'-visibility')||'{}'
+      );
+    }catch(e){}
+
+    sections.forEach(s=>{
+      s.dataset.layoutHidden=
+        visibility[s.dataset.layoutId]===true?'true':'false';
+    });
+    updateTileVisibility();
+  }
+
+
+  // Independent Voltage / Current / Power layout controls.
+  const readingsPanel=main.querySelector('section.readings');
+  const readingIds=['mv','mi','mw'];
+
+  const readingTiles=readingIds.map(id=>{
+    const value=document.getElementById(id);
+    const tile=value.closest('.reading');
+    tile.dataset.readingId=id;
+
+    const controls=document.createElement('div');
+    controls.className='reading-layout-controls';
+
+    const left=document.createElement('button');
+    left.type='button';
+    left.textContent='←';
+
+    const right=document.createElement('button');
+    right.type='button';
+    right.textContent='→';
+
+    const toggle=document.createElement('button');
+    toggle.type='button';
+    toggle.textContent='Hide';
+    toggle.className='reading-toggle';
+
+    controls.append(left,right,toggle);
+    tile.prepend(controls);
+
+    left.onclick=()=>{
+      const previous=tile.previousElementSibling;
+      if(previous&&previous.classList.contains('reading')){
+        readingsPanel.insertBefore(tile,previous);
+      }
+    };
+
+    right.onclick=()=>{
+      const next=tile.nextElementSibling;
+      if(next&&next.classList.contains('reading')){
+        readingsPanel.insertBefore(next,tile);
+      }
+    };
+
+    toggle.onclick=()=>{
+      tile.dataset.readingHidden=
+        tile.dataset.readingHidden==='true'?'false':'true';
+      updateReadingVisibility();
+    };
+
+    return tile;
+  });
+
+  function updateReadingVisibility(){
+    readingTiles.forEach(tile=>{
+      const hidden=tile.dataset.readingHidden==='true';
+      tile.classList.toggle('reading-hidden',hidden);
+      tile.querySelector('.reading-toggle').textContent=
+        hidden?'Show':'Hide';
+    });
+  }
+
+  function saveReadingLayout(){
+    const order=[...readingsPanel.querySelectorAll('.reading')]
+      .map(tile=>tile.dataset.readingId);
+
+    const hidden={};
+    readingTiles.forEach(tile=>{
+      hidden[tile.dataset.readingId]=
+        tile.dataset.readingHidden==='true';
+    });
+
+    localStorage.setItem(storageKey()+'-readings',JSON.stringify({
+      order:order,
+      hidden:hidden
+    }));
+  }
+
+  function loadReadingLayout(){
+    let saved={};
+
+    try{
+      saved=JSON.parse(
+        localStorage.getItem(storageKey()+'-readings')||'{}'
+      );
+    }catch(e){}
+
+    const lookup=new Map(
+      readingTiles.map(tile=>[tile.dataset.readingId,tile])
+    );
+
+    const order=Array.isArray(saved.order)
+      ?saved.order.filter(id=>lookup.has(id))
+      :[];
+
+    [...new Set([...order,...readingIds])].forEach(id=>{
+      readingsPanel.appendChild(lookup.get(id));
+    });
+
+    readingTiles.forEach(tile=>{
+      tile.dataset.readingHidden=
+        saved.hidden&&saved.hidden[tile.dataset.readingId]===true
+          ?'true':'false';
+    });
+
+    updateReadingVisibility();
+  }
+
+  function resetReadingLayout(){
+    localStorage.removeItem(storageKey()+'-readings');
+    loadReadingLayout();
+  }
+
+  function storageKey(){
+    return 'hp6033a-layout-'+currentMode;
+  }
+
+  function load(){
+    let order;
+    try{order=JSON.parse(localStorage.getItem(storageKey())||'null');}
+    catch(e){order=null;}
+    applyOrder(Array.isArray(order)?order:original);
+    loadTileWidths();
+    loadTileVisibility();
+    loadReadingLayout();
+  }
+
+  function setEditing(value){
+    editing=value;
+    document.body.classList.toggle('layout-editing',editing);
+    document.getElementById('layout-customize').textContent=
+      editing?'Cancel Editing':'Customize Layout';
+    document.getElementById('layout-save').hidden=!editing;
+    document.getElementById('layout-reset').hidden=!editing;
+    document.getElementById('layout-show-all').hidden=!editing;
+  }
+
+  document.getElementById('layout-customize').onclick=()=>{
+    if(editing){
+      load();
+      setEditing(false);
+    }else{
+      setEditing(true);
+    }
+  };
+
+  document.getElementById('layout-save').onclick=()=>{
+    const order=[...main.querySelectorAll(':scope > section.card')]
+      .map(s=>s.dataset.layoutId);
+    localStorage.setItem(storageKey(),JSON.stringify(order));
+    saveTileWidths();
+    saveTileVisibility();
+    saveReadingLayout();
+    setEditing(false);
+  };
+
+  document.getElementById('layout-reset').onclick=()=>{
+    localStorage.removeItem(storageKey());
+    localStorage.removeItem(storageKey()+'-widths');
+    localStorage.removeItem(storageKey()+'-visibility');
+    applyOrder(original);
+    loadTileWidths();
+    loadTileVisibility();
+    resetReadingLayout();
+    setEditing(false);
+  };
+
+  document.getElementById('layout-show-all').onclick=()=>{
+    sections.forEach(s=>s.dataset.layoutHidden='false');
+    updateTileVisibility();
+
+    readingTiles.forEach(tile=>{
+      tile.dataset.readingHidden='false';
+    });
+    updateReadingVisibility();
+  };
+
+  window.matchMedia('(max-width: 700px)').addEventListener('change',e=>{
+    currentMode=e.matches?'mobile':'desktop';
+    setEditing(false);
+    load();
+  });
+
+  load();
+})();
+
+</script>
+<dialog id="mobile-auth-dialog" style="
+ background:#182536;color:#f1f5fa;border:1px solid #506078;
+ border-radius:12px;padding:22px;width:min(90vw,380px);
+ box-shadow:0 12px 50px #0009">
+ <form id="mobile-auth-form" action="/api/control/enable" method="post" autocomplete="on">
+  <h3 style="margin-top:0">HP 6033A Control Login</h3>
+  <p>Enter your remote-control credentials.</p>
+  <label for="mobile-auth-user">Username</label>
+  <input id="mobile-auth-user" name="username"
+   autocomplete="username" required
+   style="display:block;width:100%;box-sizing:border-box;
+   margin:6px 0 14px;padding:10px">
+  <label for="mobile-auth-pass">Password</label>
+  <input id="mobile-auth-pass" name="password" type="password"
+   autocomplete="current-password" required
+   style="display:block;width:100%;box-sizing:border-box;
+   margin:6px 0 18px;padding:10px">
+  <div style="display:flex;gap:12px;justify-content:flex-end">
+   <button type="button" id="mobile-auth-cancel">Cancel</button>
+   <button type="submit">Authorize</button>
+  </div>
+ </form>
+</dialog>
+<script>
+document.getElementById('mobile-auth-cancel')
+ .addEventListener('click',()=>{
+  document.getElementById('mobile-auth-dialog').close('cancel');
+ });
+</script>
+
+</body></html>

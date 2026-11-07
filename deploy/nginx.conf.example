@@ -1,0 +1,62 @@
+# HP 6033A Web Controller
+# Replace CONTROLLER_HOST and LAN_SUBNET before installation.
+# CONTROLLER_HOST must match the HTTPS certificate and browser URL.
+# Example: CONTROLLER_HOST = hp6033a.example.lan
+# Example: LAN_SUBNET = 192.168.1.0/24
+#
+# Install only after reviewing existing Nginx sites.
+# This example does not use default_server.
+
+server {
+    listen 80;
+    server_name CONTROLLER_HOST;
+
+    location / {
+        allow 127.0.0.1;
+        allow ::1;
+        allow LAN_SUBNET;
+        deny all;
+
+        return 301 https://CONTROLLER_HOST$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name CONTROLLER_HOST;
+
+    ssl_certificate /etc/nginx/ssl/hp6033a.crt;
+    ssl_certificate_key /etc/nginx/ssl/hp6033a.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location ^~ /api/control/ {
+        if ($http_origin != "https://CONTROLLER_HOST") {
+            return 403;
+        }
+
+        allow 127.0.0.1;
+        allow ::1;
+        allow LAN_SUBNET;
+        deny all;
+
+        auth_basic "HP 6033A Control";
+        auth_basic_user_file /etc/nginx/hp6033a.htpasswd;
+
+        proxy_pass http://unix:/run/hp6033a/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        allow 127.0.0.1;
+        allow ::1;
+        allow LAN_SUBNET;
+        deny all;
+
+        proxy_pass http://unix:/run/hp6033a/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

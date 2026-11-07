@@ -1,0 +1,44 @@
+# Private configuration
+config.json
+.env
+.env.*
+!.env.example
+
+# Authentication and certificates
+.control_htpasswd
+*.htpasswd
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Python environments and caches
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Logs and backups
+logs/
+archive/
+*.log
+*.bak
+*.bak.*
+*.backup
+*.tar
+*.tar.gz
+*.zip
+*.before-logo-change
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# SSL certificates and certificate requests
+*.crt
+*.cer
+*.der
+*.csr

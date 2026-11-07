@@ -1,0 +1,23 @@
+{
+  "name": "HP 6033A Power Supply Controller",
+  "short_name": "HP 6033A",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101723",
+  "theme_color": "#101723",
+  "icons": [
+    {
+      "src": "/static/hp6033a-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/hp6033a-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

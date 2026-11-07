@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HP 6033A — Interactive Classic Front Panel v5</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#202326;color:#ddd;font:15px Arial,Helvetica,sans-serif;padding:22px}a{color:#a9ceff}nav{max-width:1120px;margin:0 auto 16px;display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}.instrument{max-width:1120px;margin:auto;color:#24251f;background:linear-gradient(160deg,#d9d7ca 0%,#c6c4b6 60%,#aaa99e 100%);border:9px solid #62635d;border-radius:12px;box-shadow:0 20px 55px #0009;padding:25px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-bottom:16px}.hp-mark{font-size:27px;font-weight:900;letter-spacing:-1px}.smallcaps{font-size:12px;letter-spacing:1.6px;font-weight:bold}.model{text-align:right;font-weight:700;font-size:22px}.display-bezel{background:#101010;border:10px solid #484943;border-radius:6px;padding:18px 22px 15px;box-shadow:inset 0 0 25px #000;display:grid;grid-template-columns:1fr 1fr;gap:30px}.meter-title{color:#ddd;letter-spacing:2px;font-size:13px;font-weight:bold}.led{display:block;width:100%;height:110px;overflow:visible}.readout-caption{color:#b4aaa4;font-size:11px;letter-spacing:1px}.indicators{margin:18px 0 22px;border:2px solid #8c8d80;padding:15px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:15px 8px}.indicator{text-align:center;font-size:11px;font-weight:700;letter-spacing:.4px}.lamp{width:12px;height:12px;margin:0 auto 8px;border-radius:50%;background:#54544d;box-shadow:inset 0 1px 3px #222}.lamp.on{background:#e69e36;box-shadow:0 0 9px #f3aa43}.lamp.alert{background:#df5d45;box-shadow:0 0 9px #e75b43}.controls{border-top:3px solid #838477;padding-top:22px;display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:18px}.cluster{padding:12px;text-align:center;border-right:1px solid #8a8b7d}.cluster:last-child{border:0}.cluster-title{font-size:13px;font-weight:bold;letter-spacing:1px;margin-bottom:17px}.button-row{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.physical-button{font:700 11px Arial,sans-serif;min-height:43px;padding:8px 13px;color:#25251f;background:linear-gradient(#ecece3,#96978c);border:3px solid #606159;border-radius:4px;box-shadow:2px 4px 3px #0004;cursor:default}.physical-button:disabled{opacity:1;color:#30312c}.knob{height:112px;width:112px;margin:0 auto 12px;border-radius:50%;border:8px solid #333;box-shadow:3px 5px 9px #0007;background:repeating-conic-gradient(#3c3d3c 0 5deg,#666 5deg 10deg);position:relative}.knob:before{content:"";position:absolute;inset:11px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#777,#353535 75%)}.knob:after{content:"";position:absolute;top:14px;left:calc(50% - 2px);height:27px;width:4px;border-radius:2px;background:#eee}.note{font-size:12px;color:#4c4c44;margin-top:12px}.connection{margin-top:18px;font-size:12px;font-weight:bold;display:flex;align-items:center;gap:8px}.connection .lamp{margin:0}.extra{max-width:1120px;margin:18px auto;background:#303438;border:1px solid #62666a;border-radius:8px;padding:15px 19px}.extra summary{cursor:pointer;font-weight:700}.extra p{line-height:1.5;color:#c4c4c4}.foot{max-width:1120px;margin:14px auto;color:#a7a7a7;font-size:12px}@media(max-width:650px){body{padding:8px}.instrument{padding:11px;border-width:5px}.hp-mark{font-size:19px}.model{font-size:16px}.smallcaps{font-size:9px}.display-bezel{padding:10px 7px;gap:7px;border-width:6px}.led{height:68px}.meter-title{font-size:10px}.indicators{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 4px}.controls{grid-template-columns:1fr}.cluster{border-right:0;border-bottom:1px solid #888}.cluster:last-child{border:0}}
+
+/* Compact authentic front panel v2 */
+.instrument{padding:18px 22px 13px}
+.top{padding-bottom:12px}
+.instrument-upper{background:transparent}
+.display-top{display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px;background:#77796f;border-radius:9px;padding:11px}
+.bus-lamps{display:flex;flex-direction:column;justify-content:space-evenly;padding:4px 8px;color:#f0f0e8;font-size:13px;font-weight:700}
+.bus-item{display:flex;align-items:center;gap:12px}
+.bus-item .lamp{margin:0;flex-shrink:0;background:#17553c}
+.display-bezel{border:6px solid #33312e;border-radius:5px;padding:8px 16px;gap:26px;min-width:0}
+.meter{min-width:0}.meter-title{text-align:center;font-size:14px;color:#bcb8b5}.led{height:94px;overflow:hidden}
+.upper-bottom{display:grid;grid-template-columns:29% 1fr;gap:9px;margin-top:8px}
+.display-buttons,.status-grid{background:#9d9e94;border-radius:8px;min-height:108px}
+.display-buttons{display:flex;justify-content:space-evenly;gap:8px;padding:9px 6px;text-align:center}
+.engrave{font-size:12px;letter-spacing:.6px;line-height:1.25;min-height:27px}
+.physical-button.square{width:43px;height:43px;min-height:0;padding:0;margin-top:6px;background:linear-gradient(135deg,#dad9c8,#9c9c90);border:3px solid #55574e;box-shadow:3px 3px 3px #0005}
+.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:1fr 1fr;gap:0;border:0;padding:5px}
+.status-grid .indicator{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;font-size:11px;letter-spacing:0}
+.status-grid .lamp{margin:0;background:#6a5d30}
+.status-grid .lamp.on{background:#ffdd67;box-shadow:0 0 9px #ffdd67}
+.controls{border-top:0;padding-top:12px;margin-top:6px;display:grid;grid-template-columns:15% 15% 20% 1fr;gap:7px}
+.cluster{min-width:0;padding:8px 5px 10px;border:3px solid #8c8d80;border-radius:10px;min-height:165px}
+.cluster:last-child{border:3px solid #8c8d80}
+.cluster-title{margin:0 0 12px;font-size:13px}.ovp-port{background:#1a1a1a;width:23px;height:23px;border-radius:50%;margin:39px auto 0;box-shadow:inset 2px 2px 4px #000}
+.fold-cluster .lamp{background:#245b41;margin:6px auto 14px}.fold-cluster .square{margin-top:3px}
+.line-switch{display:block;width:67px;height:87px;background:#202020;border:6px solid #111;border-radius:7px;margin:13px auto 0;padding:8px;box-shadow:2px 4px 5px #0007}
+.line-switch span{display:block;height:100%;background:linear-gradient(#56575a,#222328 70%,#444);border-radius:5px;box-shadow:inset 1px 2px 5px #000}
+.adjust-content{display:flex;align-items:center;justify-content:space-around;gap:12px}
+.adjust-select{display:flex;flex-direction:column;align-items:center;gap:9px}.adjust-labels{display:flex;gap:16px;font-size:12px}.adjust-labels span{display:flex;flex-direction:column;align-items:center;gap:7px}.adjust-labels .lamp{display:block;margin:0;background:#255b43}
+.knob{height:133px;width:133px;flex-shrink:0;margin:0;border:6px solid #b6b5aa;background:repeating-conic-gradient(#85867f 0deg 2deg,#c9c8bc 2deg 5deg);box-shadow:4px 5px 7px #0006}
+.knob:before{inset:9px;background:radial-gradient(circle at 38% 30%,#deded4,#a6a79e 70%,#85867d)}
+.knob:after{display:none}
+/* The original small circular grip doubles as the moving setpoint pointer.
+   It travels around the knob's outer track; no separate line pointer is shown. */
+.knob-pointer{display:none}
+.knob{transition:opacity .12s ease}
+.finger-grip{position:absolute;left:50%;top:50%;bottom:auto;width:39px;height:39px;border-radius:50%;
+ background:radial-gradient(circle at 38% 32%,#f0efe5 0%,#d6d5c9 42%,#a2a298 78%,#77786f 100%);
+ border:2px solid #77786f;box-shadow:inset 2px 3px 6px #7778,0 2px 4px #3338;z-index:4;pointer-events:none;
+ transform:translate(-50%,-50%) rotate(var(--knob-angle,-135deg)) translateY(-42px);
+ transition:transform 80ms linear}
+.connection{margin-top:11px}.extra{margin-top:10px}
+@media(max-width:650px){
+ body{padding:7px}.instrument{padding:9px;border-width:5px}.top{gap:8px;padding-bottom:9px}.hp-mark{font-size:16px}.model{font-size:14px}.smallcaps{font-size:8px;letter-spacing:.5px}
+ .display-top{grid-template-columns:47px minmax(0,1fr);gap:4px;padding:5px;border-radius:6px}.bus-lamps{font-size:9px;padding:2px;gap:4px}.bus-item{gap:3px}.bus-item .lamp{width:8px;height:8px}
+ .display-bezel{grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-width:4px}.meter-title{font-size:9px;letter-spacing:1px}.led{height:56px}
+ .upper-bottom{grid-template-columns:34% 1fr;gap:4px;margin-top:5px}.display-buttons,.status-grid{min-height:83px}.display-buttons{padding:5px 2px;gap:2px}.engrave{font-size:8px;min-height:21px}.physical-button.square{width:30px;height:30px;border-width:2px;margin-top:3px}
+ .status-grid .indicator{font-size:8px;gap:5px}.status-grid .lamp{width:8px;height:8px}
+ .controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-top:5px}.cluster{min-height:102px;padding:5px 2px;border-width:2px}.cluster:last-child{border-width:2px}.cluster-title{font-size:10px;margin-bottom:6px}
+ .line-switch{width:43px;height:57px;margin:5px auto 0;border-width:4px;padding:5px}.ovp-port{width:16px;height:16px;margin:20px auto 0}.fold-cluster .lamp{margin:4px auto 6px}.fold-cluster .square{margin-top:0}
+ .adjust-cluster{grid-column:1/-1;min-height:95px}.adjust-content{justify-content:center;gap:26px}.adjust-labels{font-size:10px}.knob{height:86px;width:86px}.finger-grip{width:27px;height:27px;transform:translate(-50%,-50%) rotate(var(--knob-angle,-135deg)) translateY(-26px)}
+ .connection{font-size:10px;flex-wrap:wrap}
+}
+
+/* Authentic HP nameplate and logo */
+.hp-header{display:grid;grid-template-columns:78px minmax(0,1fr) auto;align-items:center;column-gap:14px;row-gap:3px}
+.hp-badge svg{display:block;width:76px;max-width:100%;height:auto}
+.hp-nameplate{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;font-size:15px;letter-spacing:1px}
+.hp-nameplate strong{font-size:18px;font-weight:600}
+.hp-manufacturer{font-size:15px;letter-spacing:2px;white-space:nowrap}
+.instrument-custom-name{grid-column:2/4;font-size:10px;color:#55574e;justify-self:end}
+@media(max-width:650px){
+ .hp-header{grid-template-columns:48px minmax(0,1fr);column-gap:7px;row-gap:4px}
+ .hp-badge svg{width:46px}
+ .hp-nameplate{font-size:9px;letter-spacing:0;gap:3px 7px}
+ .hp-nameplate strong{font-size:12px}
+ .hp-manufacturer{grid-column:2;font-size:10px;letter-spacing:1px;white-space:normal}
+ .instrument-custom-name{grid-column:1/-1;font-size:9px}
+}
+
+/* Photo-matched HP 6033A: close-up reference, compact screen layout */
+:root{color-scheme:dark}
+.instrument{background:linear-gradient(115deg,#c4c4bd 0%,#d5d4cc 43%,#b9b9b1 100%);border:7px solid #777a73;border-radius:8px;padding:19px 21px 13px;color:#343530}
+.top.hp-header{display:grid;grid-template-columns:86px minmax(0,1fr) auto;align-items:center;gap:14px;padding:0 1px 16px}
+.hp-badge svg{width:85px;filter:drop-shadow(1px 2px 1px #0005)}
+.hp-nameplate{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;font:400 clamp(12px,1.45vw,18px) Arial,Helvetica,sans-serif;letter-spacing:1.7px;color:#474944}
+.hp-nameplate .model-number{font-size:1.15em;font-weight:400}
+.hp-manufacturer{font-size:clamp(11px,1.2vw,16px);font-weight:400;letter-spacing:2.3px;color:#4a4a47}
+.instrument-custom-name{grid-column:2/4;justify-self:end;font-size:10px;opacity:.75;margin-top:-8px}
+.display-top{background:#696b69;grid-template-columns:170px minmax(0,1fr);gap:10px;padding:13px 15px;border-radius:11px;min-height:177px}
+.bus-lamps{display:flex;flex-direction:row;align-items:center;gap:14px;padding:10px 0;color:#e4e4dd}
+.bus-stack{display:flex;flex-direction:column;justify-content:space-between;align-self:stretch;padding:3px 0}
+.bus-item{font-size:16px;gap:10px;white-space:nowrap;font-weight:600}
+.bus-item .lamp{width:15px;height:15px;border:1px solid #234f40;background:radial-gradient(circle at 35% 30%,#1c7659,#13543d 75%);box-shadow:inset 1px 1px 2px #1118}
+.bus-item .lamp.on{background:#b3ff19;box-shadow:0 0 9px #9dff00,0 0 3px #dfff86}
+.lcl-button{height:59px;min-height:0;padding:8px 9px;font-size:13px;border:5px solid #303332;border-radius:11px;background:linear-gradient(145deg,#7b7c76,#333534);color:#f4f2e8!important;box-shadow:2px 4px 4px #0007}
+.display-readouts{min-width:0;display:flex;flex-direction:column;justify-content:center}
+.display-titles{display:grid;grid-template-columns:1fr 1fr;color:#dddcd8;letter-spacing:2px;font-size:18px;text-align:center;padding:0 12px 9px}
+.display-bezel{background:linear-gradient(100deg,#1b0a10,#0d060a 48%,#160811);border:6px solid #373333;border-radius:6px;padding:10px 15px;box-shadow:inset 0 0 22px #000,0 1px 2px #aaa4;gap:28px;min-height:119px;align-items:center}
+.led{height:90px;max-width:100%}
+.upper-bottom{margin-top:7px;grid-template-columns:29% 1fr}
+.display-buttons,.status-grid{background:#9b9c96}
+.engrave,.indicator{color:#53554f;font-weight:500;letter-spacing:1px}
+.physical-button.square{background:linear-gradient(140deg,#cfcfc4,#9b9d93);border-color:#4d4e48}
+.controls{margin-top:8px;padding-top:9px}
+.knob{background:repeating-conic-gradient(#9b9c94 0 2deg,#d4d2c8 2deg 5deg);border-color:#b8b8ae}
+.knob:before{background:radial-gradient(circle at 38% 32%,#e1e0d6,#b7b8ae 67%,#989990)}
+@media(max-width:700px){
+ .instrument{padding:9px;border-width:5px}
+ .top.hp-header{grid-template-columns:49px minmax(0,1fr);gap:5px 8px;padding-bottom:9px}
+ .hp-badge svg{width:48px}
+ .hp-nameplate{font-size:clamp(9px,2.5vw,13px);gap:3px 8px;letter-spacing:.25px}
+ .hp-manufacturer{grid-column:2;font-size:10px;letter-spacing:1px}
+ .instrument-custom-name{grid-column:1/-1;margin-top:0;font-size:9px}
+ .display-top{grid-template-columns:85px minmax(0,1fr);gap:4px;padding:6px;min-height:104px;border-radius:6px}
+ .bus-lamps{gap:5px;padding:3px 0}
+ .lcl-button{height:32px;padding:2px 3px;border-width:3px;border-radius:6px;font-size:9px}
+ .bus-stack{padding:0}
+ .bus-item{font-size:9px;gap:4px}
+ .bus-item .lamp{width:8px;height:8px}
+ .display-titles{font-size:10px;padding:0 3px 4px;letter-spacing:1px}
+ .display-bezel{min-height:62px;border-width:3px;padding:4px;gap:5px}
+ .led{height:56px}
+ .upper-bottom{grid-template-columns:34% 1fr}
+}
+@media(max-width:360px){.display-top{grid-template-columns:71px minmax(0,1fr)}.bus-lamps{gap:3px}.bus-item{font-size:8px;gap:2px}.lcl-button{font-size:8px}}
+
+/* Revision 2: keep both independent LED displays inside their own columns. */
+.display-bezel{grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(5px,2vw,22px)}
+.display-bezel .meter{min-width:0;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.display-bezel .meter .led{display:block;width:100%;height:auto;max-width:100%;overflow:hidden;aspect-ratio:240 / 85}
+@media(max-width:700px){
+ .display-top{grid-template-columns:75px minmax(0,1fr)}
+ .display-bezel{gap:3px;padding:4px 3px;min-height:0}
+ .display-bezel .meter .led{height:auto}
+ .hp-nameplate{font-size:clamp(9px,2.2vw,12px);letter-spacing:0;gap:3px 7px}
+ .hp-manufacturer{grid-column:2/-1;justify-self:end;text-align:right;font-size:clamp(9px,2.3vw,11px);letter-spacing:.65px}
+ .instrument-custom-name{grid-column:2/-1;justify-self:end}
+ .display-top{min-height:0}
+ .upper-bottom{margin-top:5px}
+ .controls{margin-top:5px;padding-top:6px}
+}
+@media(max-width:390px){.display-top{grid-template-columns:65px minmax(0,1fr)}.bus-item{gap:2px;font-size:8px}}
+
+/* Safe staged front-panel controls */
+.adjust-select .lamp.selected{background:#b3ff19;box-shadow:0 0 8px #9dff00}
+.adjust-select .physical-button:not(:disabled),.display-buttons .physical-button:not(:disabled){cursor:pointer}
+.knob.interactive{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:contain;outline-offset:4px}
+.knob.interactive:active,.knob.dragging{cursor:grabbing}
+.knob.locked{opacity:.6;cursor:not-allowed}
+.knob:focus-visible,.physical-button:focus-visible{outline:3px solid #1764a6}
+.adjust-readback{display:flex;flex-direction:column;align-items:center;gap:5px;margin:5px auto 0;font-size:12px;min-width:0}
+.adjust-readback strong{font-variant-numeric:tabular-nums;font-size:16px}
+.knob-gesture-hint{font-size:10px;line-height:1.25;color:#55564f;text-align:center;max-width:190px}
+.adjust-actions{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px}
+.adjust-actions button{min-height:34px;padding:5px 12px;border:2px solid #66685f;border-radius:5px;background:#e0dfd4;color:#24251f;font-weight:bold;cursor:pointer}
+.adjust-actions button:disabled{opacity:.5;cursor:not-allowed}
+.adjust-actions .apply{background:#c9dfbd}
+.adjust-actions .discard{background:#ddd4c9}
+.adjust-message{font-size:11px;line-height:1.3;min-height:14px;max-width:320px;text-align:center}
+.adjust-message.error{color:#92251e;font-weight:bold}
+.adjust-message.success{color:#255c25;font-weight:bold}
+.adjust-mode-note{font-size:10px;color:#55564e;text-align:center}
+.settings-view-note{font-size:11px;color:#383a33;text-align:center;margin:3px 0 0}
+@media(max-width:700px){.adjust-content{flex-wrap:wrap;gap:10px}.adjust-readback{width:100%}.adjust-actions{margin-top:5px}.adjust-actions button{min-height:36px}.adjust-cluster{min-height:0}}
+.display-view-note{margin-top:5px;text-align:right;color:#d0c8c5;font-size:9px;letter-spacing:1px}
+#display-settings-btn[aria-pressed="true"]{background:linear-gradient(#c7d6b8,#7e9871);box-shadow:inset 1px 2px 3px #3338,2px 2px 2px #0005}
+.unknown-state{background:#54544d!important;box-shadow:inset 0 1px 3px #222!important}
+
+@media(max-width:700px){.display-view-note{font-size:7px;margin-top:2px}}
+
+/* In-page Basic Authentication for protected GPIB writes */
+#control-auth-dialog{width:min(92vw,380px);border:2px solid #62635d;border-radius:10px;padding:20px;background:#d2d1c7;color:#292a25;box-shadow:0 12px 40px #0008}
+#control-auth-dialog::backdrop{background:#0009}
+#control-auth-dialog h2{font-size:17px;margin:0 0 8px}
+#control-auth-dialog p{font-size:12px;line-height:1.4}
+#control-auth-dialog label{display:block;font-size:12px;font-weight:bold;margin-top:10px}
+#control-auth-dialog input{display:block;width:100%;min-height:40px;padding:7px;margin-top:4px;border:1px solid #777;border-radius:4px;font-size:16px}
+#control-auth-dialog .auth-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+#control-auth-dialog button{min-height:38px;padding:7px 13px;border:2px solid #66685f;border-radius:5px;background:#e0dfd4;color:#24251f;font-weight:bold}
+#control-auth-dialog button[type=submit]{background:#c9dfbd}
+
+
+/* Classic v7 - Mobile layout improvements */
+@media (max-width: 700px) {
+  .top.hp-header {
+    padding-bottom: 6px;
+    row-gap: 2px;
+  }
+
+  .hp-nameplate {
+    line-height: 1.1;
+  }
+
+  .hp-manufacturer {
+    line-height: 1;
+  }
+
+  .instrument-custom-name {
+    margin-top: -2px;
+    line-height: 1;
+  }
+}
+
+
+/* Classic v7 - Compact mobile navigation */
+@media (max-width: 700px) {
+  nav {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  nav strong {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  nav a {
+    font-size: 11px;
+    text-align: right;
+  }
+}
+
+
+/* Classic v7 - Mobile navigation at bottom */
+@media (max-width: 700px) {
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body > nav {
+    display: contents;
+  }
+
+  body > nav strong {
+    display: none;
+  }
+
+  body > nav a {
+    order: 10;
+    display: block;
+    width: 100%;
+    max-width: 1120px;
+    margin: 12px auto 18px;
+    padding: 10px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  body > main.instrument {
+    order: 1;
+    width: 100%;
+  }
+
+  body > dialog,
+  body > details.extra,
+  body > footer.foot {
+    order: 2;
+  }
+}
+
+
+/* Classic v7 - Compact lower controls on mobile */
+@media (max-width: 700px) {
+  .line-cluster,
+  .ovp-cluster,
+  .fold-cluster {
+    min-height: 0;
+    height: 90px;
+  }
+
+  .line-switch {
+    width: 39px;
+    height: 49px;
+    margin-top: 3px;
+  }
+
+  .ovp-port {
+    margin-top: 8px;
+  }
+
+  .fold-cluster .lamp {
+    margin: 2px auto 3px;
+  }
+}
+
+
+/* Classic v7 - Mobile output adjust spacing */
+@media (max-width: 700px) {
+  .adjust-content {
+    gap: 5px;
+  }
+
+  .adjust-readback {
+    margin-top: 0;
+    gap: 4px;
+  }
+
+  .adjust-actions {
+    margin-top: 9px;
+  }
+
+  .adjust-message {
+    margin: 9px auto 2px;
+    max-width: 100%;
+    padding: 0 5px;
+    line-height: 1.4;
+  }
+}
+
+
+/* Classic v7 - Mobile knob horizontal position */
+@media (max-width: 700px) {
+  .adjust-content > .knob {
+    position: relative;
+    left: 25px;
+  }
+}
+
+</style>
+
+<style>
+#classic-preset-editor {
+  margin-top:16px;
+  padding:14px;
+  border:1px solid #777;
+  border-radius:8px;
+}
+
+#classic-preset-editor h3 {
+  margin:14px 0 8px;
+}
+
+.classic-preset-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.classic-preset-grid button[aria-pressed="true"] {
+  background:#d9f5df;
+  border-color:#2d753c;
+  color:#185226;
+}
+
+.classic-preset-field {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  min-width:0;
+}
+
+.classic-preset-field label {
+  font-size:12px;
+  font-weight:bold;
+}
+
+.classic-preset-field input {
+  width:100%;
+  min-width:0;
+  padding:9px;
+  font-size:16px;
+  box-sizing:border-box;
+}
+
+.classic-preset-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+
+#classic-preset-message {
+  font-size:13px;
+  margin-top:12px;
+}
+
+@media(max-width:480px) {
+  .classic-preset-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+/* Classic remote/output controls */
+.remote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px 0 14px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.18);
+}
+
+.remote-actions button {
+  min-height: 42px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.remote-actions #output-off {
+  background: #922b2b;
+  color: white;
+}
+
+.remote-actions button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .remote-actions {
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .remote-actions button {
+    flex: 1 1 120px;
+  }
+}
+
+</style>
+
+<link rel="icon" href="/static/hp6033a.ico" sizes="any"><link rel="icon" type="image/png" sizes="192x192" href="/static/hp6033a-192.png"><link rel="apple-touch-icon" href="/static/hp6033a-192.png"><link rel="manifest" href="/static/manifest.webmanifest"><meta name="theme-color" content="#101723"></head>
+<body>
+<nav><strong>CLASSIC INSTRUMENT VIEW</strong><a href="/" style="color: #9baabe; font-family: system-ui, Segoe UI, sans-serif; font-size: 13px; text-decoration: underline;">Modern View</a><a href="/docs/">Documentation</a></nav>
+<main class="instrument">
+ <header class="top hp-header">
+  <div class="hp-badge" aria-label="Vintage HP badge">
+   <svg viewBox="0 0 94 76" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HP">
+    <defs><linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f5f1"/><stop offset=".55" stop-color="#c9c9c5"/><stop offset="1" stop-color="#f0f0ec"/></linearGradient></defs>
+    <rect x="1.5" y="1.5" width="91" height="73" rx="8" fill="#35363b" stroke="#202124" stroke-width="3"/>
+    <rect x="7" y="7" width="80" height="62" rx="4" fill="url(#silver)" stroke="#858783" stroke-width="2"/>
+    <defs>
+     <clipPath id="hp-logo-circle">
+      <circle cx="47" cy="38" r="28"/>
+     </clipPath>
+    </defs>
+    <image href="/static/hp6033a-192.png"
+           x="19" y="10" width="56" height="56"
+           preserveAspectRatio="xMidYMid slice"
+           clip-path="url(#hp-logo-circle)"/>
+   </svg>
+  </div>
+  <div class="hp-nameplate"><span class="model-number">6033A</span><span>SYSTEM POWER SUPPLY</span><span>0-20V/0-30A, 200W</span></div>
+  <div class="hp-manufacturer">HEWLETT • PACKARD</div>
+  <span class="instrument-custom-name" id="instrument-name">HP 6033A</span>
+ </header>
+ <section class="instrument-upper" aria-label="Instrument display and indicators">
+  <div class="display-top">
+   <div class="bus-lamps" aria-label="GPIB indicators">
+    <button class="physical-button lcl-button" disabled title="Local control is not implemented">LCL</button>
+    <div class="bus-stack"><div class="bus-item"><span class="lamp unknown-state" id="remote-led" title="Actual instrument RMT state unavailable: this USB-GPIB adapter does not expose a readable REN state."></span><span>RMT ?</span></div>
+    <div class="bus-item"><span class="lamp"></span><span>LSN</span></div>
+    <div class="bus-item"><span class="lamp"></span><span>TLK</span></div>
+    <div class="bus-item"><span class="lamp"></span><span>SRQ</span></div></div>
+   </div>
+   <div class="display-readouts">
+    <div class="display-titles"><span>VOLTS</span><span>AMPS</span></div>
+    <div class="display-bezel" aria-label="Live instrument readings">
+     <div class="meter"><svg class="led" id="voltage-led" role="img" aria-label="Measured voltage unavailable"></svg></div>
+     <div class="meter"><svg class="led" id="current-led" role="img" aria-label="Measured current unavailable"></svg></div>
+    </div>
+    <div id="display-view-note" class="display-view-note">DISPLAY: MEASURED OUTPUT</div>
+   </div>
+  </div>
+  <div class="upper-bottom">
+   <div class="display-buttons">
+    <div><div class="engrave">DISPLAY<br>SETTINGS</div><button id="display-settings-btn" class="physical-button square" type="button" aria-label="Toggle measured readings and programmed settings" aria-pressed="false"></button></div>
+    <div><div class="engrave">DISPLAY<br>OVP</div><button class="physical-button square" disabled aria-label="Display OVP, not yet active"></button></div>
+   </div>
+   <div class="status-grid" aria-label="Instrument condition indicators">
+    <div class="indicator">CV<span class="lamp"></span></div><div class="indicator">CC<span class="lamp"></span></div><div class="indicator">OVERRANGE<span class="lamp"></span></div><div class="indicator">DISABLED<span class="lamp" id="disabled-led"></span></div>
+    <div class="indicator">OV<span class="lamp"></span></div><div class="indicator">OT<span class="lamp"></span></div><div class="indicator">FOLDBACK<span class="lamp"></span></div><div class="indicator">ERROR<span class="lamp"></span></div>
+   </div>
+  </div>
+ </section>
+ <section class="controls" aria-label="Original front panel controls">
+  <div class="cluster line-cluster"><div class="cluster-title">LINE</div><button class="line-switch" disabled aria-label="Physical AC switch, display only"><span></span></button></div>
+  <div class="cluster ovp-cluster"><div class="cluster-title">OVP</div><div class="engrave">ADJUST</div><div class="ovp-port" aria-label="OVP adjustment port, decorative"></div></div>
+  <div class="cluster fold-cluster"><div class="cluster-title">FOLDBACK</div><div class="engrave">ENABLED</div><span class="lamp"></span><button class="physical-button square" disabled aria-label="Foldback button, not active"></button></div>
+  <div class="cluster adjust-cluster"><div class="cluster-title">OUTPUT ADJUST</div>
+    <div class="adjust-content">
+      <div class="adjust-select"><div class="adjust-labels"><span>VOLTAGE<i class="lamp" id="select-voltage-lamp"></i></span><span>CURRENT<i class="lamp" id="select-current-lamp"></i></span></div><button id="adjust-select-btn" type="button" class="physical-button square" aria-label="Select voltage or current adjustment" title="Select voltage or current"></button></div>
+      <div id="adjust-knob" class="knob locked" role="slider" tabindex="-1" aria-label="Rotary setpoint knob. Rotate clockwise to increase and counterclockwise to decrease." aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span class="knob-pointer" aria-hidden="true"></span><span class="finger-grip" aria-hidden="true"></span></div>
+      <div class="adjust-readback"><span id="adjust-kind">VOLTAGE SETPOINT</span><strong id="adjust-value">—</strong><span class="adjust-mode-note" id="adjust-step">Coarse: 0.100 V</span><span class="knob-gesture-hint">Rotate clockwise to increase · counterclockwise to decrease</span></div>
+    </div>
+    <div class="adjust-actions"><button type="button" id="adjust-minus" aria-label="Decrease selected setting">−</button><button type="button" id="adjust-plus" aria-label="Increase selected setting">+</button><button type="button" id="adjust-fine">FINE: OFF</button><button type="button" id="adjust-apply" class="apply">APPLY</button><button type="button" id="adjust-discard" class="discard">RESET</button></div>
+    <div class="remote-actions" aria-label="Remote power supply controls">
+      <button type="button" id="remote-enable" disabled>ENABLE REMOTE</button>
+      <button type="button" id="output-on" disabled>OUTPUT ON</button>
+      <button type="button" id="output-off" disabled>OUTPUT OFF</button>
+    </div>
+    {% include "control_confirmation.html" %}
+<div id="adjust-message" class="adjust-message" role="status" aria-live="polite">Knob locked until remote control is enabled and output is OFF.</div>
+   </div>
+ </section>
+ <div class="connection"><span class="lamp" id="connection-led"></span><span id="connection-text">CONNECTING TO GPIB...</span><span id="output-text">· OUTPUT UNKNOWN</span></div>
+</main>
+
+<dialog id="control-auth-dialog" aria-labelledby="control-auth-title">
+ <form id="control-auth-form">
+  <h2 id="control-auth-title">Authorize HP 6033A adjustment</h2>
+  <p>Enter the same control credentials used by the Modern dashboard. These credentials are held only in this page's memory and sent to the server for protected control requests. Use only on a trusted network until HTTPS is configured.</p>
+  <label for="control-auth-user">Username</label><input id="control-auth-user" name="username" autocomplete="username" required>
+  <label for="control-auth-password">Password</label><input id="control-auth-password" name="password" type="password" autocomplete="current-password" required>
+  <div class="auth-actions"><button type="button" id="control-auth-cancel">Cancel</button><button type="submit">Continue</button></div>
+ </form>
+</dialog>
+
+<details class="extra">
+  <summary>Extra Remote Controls &amp; Settings</summary>
+
+  <p>Use the <a href="/">Modern dashboard</a> to enable or disable remote programming. The Classic knob stages voltage/current settings; APPLY uses the existing server safety checks.</p>
+
+  <div id="classic-preset-editor">
+    <h3>Voltage Presets</h3>
+    <div class="classic-preset-grid" id="classic-voltage-presets"></div>
+
+    <h3>Current Limit Presets</h3>
+    <div class="classic-preset-grid" id="classic-current-presets"></div>
+
+    <div class="classic-preset-actions">
+      <button type="button" id="classic-save-presets">Save Presets</button>
+      <button type="button" id="classic-reload-presets">Reload Presets</button>
+    </div>
+
+    <p id="classic-preset-message" role="status" aria-live="polite">
+      Editing presets does not change the power supply output.
+    </p>
+  </div>
+</details>
+
+<footer class="foot">HP 6033A Classic v4 · Live GPIB readings · Guarded setpoint adjustment</footer>
+<script>
+'use strict';
+const el=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const glyphs={'0':'abcdef','1':'bc','2':'abdeg','3':'abcdg','4':'bcfg','5':'acdfg','6':'acdefg','7':'abc','8':'abcdefg','9':'abcdfg','-':'g',' ':'','?':'abeg'};
+const shapes={a:'10,3 36,3 31,8 15,8',b:'39,6 43,10 43,34 38,38 35,33 35,12',c:'39,43 43,47 43,71 38,75 35,70 35,49',d:'10,78 36,78 31,73 15,73',e:'7,43 12,49 12,70 7,75 4,71 4,47',f:'7,6 12,12 12,33 7,38 4,34 4,10',g:'10,40 15,36 31,36 36,40 31,44 15,44'};
+function drawLED(id,value){
+ const svg=el(id),str=String(value),items=[];
+ for(const ch of str){if(ch==='.'&&items.length){items[items.length-1].dot=true;}else if(ch!=='.'){items.push({ch:ch,dot:false});}}
+ const cell=48;svg.setAttribute('viewBox',`0 0 ${Math.max(items.length*cell,cell)} 85`);svg.replaceChildren();
+ items.forEach((item,i)=>{const group=document.createElementNS(NS,'g');group.setAttribute('transform',`translate(${i*cell+2},0) scale(.88,1)`);for(const [key,points] of Object.entries(shapes)){const polygon=document.createElementNS(NS,'polygon');polygon.setAttribute('points',points);const active=(glyphs[item.ch]||'').includes(key);polygon.setAttribute('fill',active?'#ff2479':'#230b16');if(active)polygon.setAttribute('style','filter:drop-shadow(0 0 3px #ff1475) drop-shadow(0 0 7px #e00054)');group.append(polygon);}if(item.dot){const dot=document.createElementNS(NS,'circle');dot.setAttribute('cx','44');dot.setAttribute('cy','76');dot.setAttribute('r','4');dot.setAttribute('fill','#ff2479');group.append(dot);}svg.append(group);});
+ svg.setAttribute('aria-label',value);
+}
+const limits={{ limits | tojson }};
+const decimals={voltage:3,current:3};
+let mode='voltage',fine=false,settingsView=false,lastStatus=null,staged=null,dirty=false,busy=false,blocked=false;
+let controlAuthorization=null; // Memory only; never persisted.
+function requestControlAuthorization(){
+ if(controlAuthorization)return Promise.resolve(controlAuthorization);
+ const dialog=el('control-auth-dialog'),form=el('control-auth-form');
+ return new Promise(resolve=>{
+  const finish=value=>{dialog.removeEventListener('close',onClose);resolve(value);};
+  const onClose=()=>finish(dialog.returnValue==='authorized'?controlAuthorization:null);
+  dialog.addEventListener('close',onClose,{once:true});
+  el('control-auth-cancel').onclick=()=>dialog.close('cancel');
+  form.onsubmit=event=>{
+   event.preventDefault();
+   const username=el('control-auth-user').value;
+   const password=el('control-auth-password').value;
+   if(!username||!password)return;
+   controlAuthorization='Basic '+btoa(unescape(encodeURIComponent(username+':'+password)));
+   el('control-auth-password').value='';
+   dialog.close('authorized');
+  };
+  dialog.showModal();el('control-auth-user').focus();
+ });
+}
+const finiteNumber=x=>(typeof x==='number'&&Number.isFinite(x))?x:null;
+const liveValue=()=>lastStatus?finiteNumber(lastStatus[mode]):null;
+const permitted=()=>!busy&&!blocked&&lastStatus?.gpib_connected===true&&lastStatus?.remote_control_enabled===true&&lastStatus?.output===false&&liveValue()!==null;
+const step=()=>mode==='voltage'?(fine?.01:.1):(fine?.001:.01);
+let adjustmentFailure='';
+function message(txt,type=''){const e=el('adjust-message');e.textContent=txt;e.className='adjust-message '+type;}
+const drafts = {
+ voltage: {staged:null,dirty:false},
+ current: {staged:null,dirty:false}
+};
+function saveDraft(){
+ drafts[mode].staged=staged;
+ drafts[mode].dirty=dirty;
+}
+function loadDraft(){
+ staged=drafts[mode].staged;
+ dirty=drafts[mode].dirty;
+}
+function syncStaged(){
+ if(!dirty){staged=liveValue();}
+ saveDraft();
+}
+function anyDirty(){
+ return Object.values(drafts).some(d=>d.dirty);
+}
+function updateKnobPointer(){
+ const value=staged===null?liveValue():staged;
+ const max=limits[mode];
+ const ratio=value===null?0:Math.max(0,Math.min(1,value/max));
+ const angle=-135+(ratio*270);
+ el('adjust-knob').style.setProperty('--knob-angle',angle+'deg');
+}
+function updateClassicPresetHighlights(){
+ for(const type of ['voltage','current']){
+  const container=el('classic-'+type+'-selection');
+  if(!container)continue;
+  const value=drafts[type].dirty?drafts[type].staged:lastStatus?.[type];
+  for(const button of container.children){
+   const selected=Number.isFinite(value)&&Math.abs(value-Number(button.dataset.value))<.005;
+   button.setAttribute('aria-pressed',String(selected));
+  }
+ }
+}
+function showControls(){
+ updateClassicPresetHighlights();
+ const ok=permitted();syncStaged();updateKnobPointer();
+ el('select-voltage-lamp').className='lamp'+(mode==='voltage'?' selected':'');
+ el('select-current-lamp').className='lamp'+(mode==='current'?' selected':'');
+ el('adjust-kind').textContent=mode.toUpperCase()+' SETPOINT';
+ el('adjust-value').textContent=staged===null?'—':staged.toFixed(decimals[mode])+(mode==='voltage'?' V':' A')+(dirty?' *':'');
+ el('adjust-step').textContent=(fine?'Fine':'Coarse')+': '+step().toFixed(3)+(mode==='voltage'?' V':' A')+' per step';
+ el('adjust-fine').textContent='FINE: '+(fine?'ON':'OFF');
+ for(const id of ['adjust-minus','adjust-plus','adjust-fine','adjust-discard'])el(id).disabled=!ok;
+ el('adjust-apply').disabled=!ok||!anyDirty();
+ el('adjust-select-btn').disabled=busy;
+ updateRemoteButtons();
+ el('adjust-knob').classList.toggle('interactive',ok);
+ el('adjust-knob').classList.toggle('locked',!ok);
+ el('adjust-knob').tabIndex=ok?0:-1;
+ el('adjust-knob').setAttribute('aria-valuemax',String(limits[mode]));
+ el('adjust-knob').setAttribute('aria-valuenow',String(staged??0));
+ el('adjust-knob').setAttribute('aria-valuetext',staged===null?'Unavailable':staged.toFixed(3)+(mode==='voltage'?' volts':' amps'));
+ if(!ok&&!busy){message(blocked?adjustmentFailure:lastStatus?.gpib_connected!==true?'GPIB disconnected — knob locked.':lastStatus?.remote_control_enabled!==true?'Press ENABLE REMOTE below to authorize programming.':lastStatus?.output!==false?'Output must be confirmed OFF to adjust settings.':'Waiting for valid setpoint readback.');}
+}
+function resetDraft(){
+ dirty=false;
+ staged=liveValue();
+ saveDraft();
+ showControls();
+}
+function changeMode(){
+  // Preserve the current setting before switching.
+  drafts[mode].staged = staged;
+  drafts[mode].dirty = dirty;
+
+  // Switch to the other setting.
+  mode = mode === 'voltage' ? 'current' : 'voltage';
+
+  // Restore that setting's independent draft.
+  staged = drafts[mode].staged;
+  dirty = drafts[mode].dirty;
+
+  // Only initialize from hardware if no draft exists.
+  if (staged === null && lastStatus) {
+    staged = finiteNumber(lastStatus[mode]);
+    drafts[mode].staged = staged;
+  }
+
+  showControls();
+}
+function adjust(direction){if(!permitted()||staged===null)return;const next=Math.round(Math.max(0,Math.min(limits[mode],staged+direction*step()))*1000)/1000;if(next!==staged){staged=next;dirty=Math.abs(staged-liveValue())>.0005;saveDraft();message(dirty?'Staged only — press APPLY to write to the instrument.':'Matches instrument setpoint.');showControls();}}
+function renderMeters(){
+ const s=lastStatus;
+ if(!s||s.gpib_connected!==true){drawLED('voltage-led','----');drawLED('current-led','----');return;}
+ const v=finiteNumber(s[settingsView?'voltage':'measured_voltage']);
+ const a=finiteNumber(s[settingsView?'current':'measured_current']);
+ drawLED('voltage-led',v===null?'----':v.toFixed(2));
+ drawLED('current-led',a===null?'----':a.toFixed(3));
+ el('display-view-note').textContent=settingsView?'DISPLAY: PROGRAMMED SETTINGS':'DISPLAY: MEASURED OUTPUT';
+ el('display-settings-btn').setAttribute('aria-pressed',String(settingsView));
+ el('display-settings-btn').title=settingsView?'Showing programmed setpoints; press to show measured output':'Showing measured output; press to show programmed setpoints';
+}
+function unknown(){
+ drafts.voltage={staged:null,dirty:false};
+ drafts.current={staged:null,dirty:false};
+ lastStatus=null;dirty=false;staged=null;drawLED('voltage-led','----');drawLED('current-led','----');el('remote-led').className='lamp unknown-state';el('disabled-led').className='lamp';el('connection-led').className='lamp alert';el('connection-text').textContent='GPIB DISCONNECTED';el('output-text').textContent='· OUTPUT UNKNOWN';showControls();}
+async function refresh(){
+ if(busy)return;
+ try{
+  const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);
+  const s=await response.json();el('instrument-name').textContent=typeof s.instrument_name==='string'?s.instrument_name:'HP 6033A';
+  if(s.gpib_connected!==true){unknown();return;}
+  const previousStatus=lastStatus;
+  lastStatus=s;
+
+  const externalChange = previousStatus &&
+    ['voltage','current'].some(key =>
+      drafts[key].dirty &&
+      typeof previousStatus[key]==='number' &&
+      typeof s[key]==='number' &&
+      Math.abs(previousStatus[key]-s[key])>.005
+    );
+
+  if(externalChange){
+    drafts.voltage={staged:null,dirty:false};
+    drafts.current={staged:null,dirty:false};
+    staged=null;
+    dirty=false;
+    message('Instrument settings changed externally. Pending selections cleared.','error');
+  }
+
+  // Preserve both drafts during routine status updates.
+  // Permission checks still prevent hardware writes.
+  loadDraft();
+  renderMeters();
+  // Actual instrument RMT/REN state is not readable through this USB-GPIB adapter.
+  // Deliberately leave the RMT indicator neutral; do not substitute software authorization.
+  el('remote-led').className='lamp unknown-state';
+  el('disabled-led').className='lamp'+(s.output===false?' on':'');
+  el('connection-led').className='lamp on';el('connection-text').textContent='GPIB CONNECTED';
+  el('output-text').textContent=s.output===true?'· OUTPUT ON':s.output===false?'· OUTPUT OFF':'· OUTPUT UNKNOWN';
+  showControls();
+ }catch(e){unknown();}
+}
+async function applyDraft(){
+ saveDraft();
+ if(!permitted()||!anyDirty())return;
+
+ const pending=['voltage','current']
+  .filter(key=>drafts[key].dirty)
+  .map(key=>({key,value:drafts[key].staged}));
+
+ if(pending.some(p=>!Number.isFinite(p.value)||
+    p.value<0||p.value>limits[p.key])) {
+  message('Staged value exceeds safety limits.','error');
+  return;
+ }
+
+ const description=pending.map(p=>
+  p.key+' '+p.value.toFixed(3)+(p.key==='voltage'?' V':' A')
+ ).join(' and ');
+
+ if(!confirmControl(
+  'Apply '+description+' to HP 6033A?\nOutput must remain OFF.'
+ ))return;
+
+ busy=true;
+ showControls();
+ message('Writing settings and verifying hardware readback...');
+
+ const completed=[];
+ const readbacks=[];
+ try{
+  const authorization=await requestControlAuthorization();
+  if(!authorization) {
+   message('Apply cancelled — staged settings preserved.');
+   return;
+  }
+
+  for(const {key,value} of pending){
+   const check=await fetch('/api/status',{cache:'no-store'});
+   if(!check.ok)throw Error('Could not verify instrument state');
+
+   const fresh=await check.json();
+   if(fresh.gpib_connected!==true||
+      fresh.remote_control_enabled!==true||
+      fresh.output!==false)
+    throw Error('Control no longer authorized or output is not OFF');
+
+   const response=await fetch('/api/control/set',{
+    method:'POST',
+    headers:{
+     'Content-Type':'application/json',
+     'Authorization':authorization
+    },
+    body:JSON.stringify({key,value})
+   });
+
+   if(response.status===401){
+    controlAuthorization=null;
+    throw Error('Credentials rejected');
+   }
+
+   const result=await response.json();
+   if(!response.ok||result.success!==true)
+    throw Error(key+': '+(result.error||'Hardware write failed'));
+
+   if(typeof result.actual!=='number'||
+      !Number.isFinite(result.actual)||
+      Math.abs(result.actual-value)>.005)
+    throw Error(key+': hardware readback mismatch');
+
+   completed.push(key);
+   readbacks.push(key+' '+result.actual.toFixed(3)+(key==='voltage'?' V':' A'));
+   drafts[key]={staged:result.actual,dirty:false};
+  }
+
+  loadDraft();
+  message('Instrument confirmed: '+readbacks.join(' and '),'success');
+ }catch(e){
+  blocked=true;
+  const completedText = completed.length
+    ? completed.join(', ')
+    : 'none';
+
+  adjustmentFailure='Hardware adjustment failed. Confirmed writes: '+
+   completedText+
+   '. Error: '+e.message+
+   '. Check the instrument before reloading.';
+ }finally{
+  busy=false;
+  await refresh();
+  loadDraft();
+  showControls();
+  if(adjustmentFailure) message(adjustmentFailure,'error');
+ }
+}
+async function enableRemoteFromClassic(){
+ if(busy || lastStatus?.gpib_connected!==true)return;
+
+ const disabling=lastStatus.remote_control_enabled===true;
+
+ if(!disabling && (blocked || lastStatus.output!==false))return;
+
+ if(disabling && lastStatus.output===true){
+  if(!confirmControl('Disable remote programming? The power supply output will remain ON.'))return;
+ }
+
+ if(!disabling && !confirmControl(
+  'Enable remote programming? Output must be OFF.'
+ ))return;
+
+ const authorization=await requestControlAuthorization();
+ if(!authorization)return;
+
+ busy=true;
+ showControls();
+ message(disabling?'Disabling remote programming...':'Enabling remote programming...');
+
+ try{
+  const action=disabling?'disable':'enable';
+  const response=await fetch('/api/control/'+action,{
+   method:'POST',
+   headers:{'Authorization':authorization}
+  });
+
+  if(response.status===401){
+   controlAuthorization=null;
+   throw Error('Invalid credentials');
+  }
+
+  const result=await response.json();
+
+  if(!response.ok || result.enabled!==!disabling)
+   throw Error(result.error||'Remote control request failed');
+
+  message(disabling?'Remote programming disabled.':'Remote programming enabled.','success');
+ }catch(e){
+  message('Remote control failed: '+e.message,'error');
+ }finally{
+  busy=false;
+  await refresh();
+ }
+}
+function validOutputSetpoints(v,a){
+ return Number.isFinite(v) && Number.isFinite(a) &&
+  v>=0 && v<=limits.voltage && a>=0.001 && a<=limits.current;
+}
+
+function updateRemoteButtons(){
+ const connected=lastStatus?.gpib_connected===true;
+ const outputOff=lastStatus?.output===false;
+ const enabled=lastStatus?.remote_control_enabled===true;
+
+ el('remote-enable').textContent=enabled?'Disable Remote Control':'Enable Remote Control';
+ el('remote-enable').disabled=busy||(!enabled&&(blocked||!connected||!outputOff));
+
+ const safeSettings=validOutputSetpoints(lastStatus?.voltage,lastStatus?.current);
+
+ el('output-on').disabled=
+  busy||blocked||!connected||!outputOff||!enabled||
+  !safeSettings||anyDirty();
+
+ el('output-off').disabled=busy||!connected||lastStatus?.output!==true;
+}
+
+async function controlOutputFromClassic(turnOn){
+ if(busy || lastStatus?.gpib_connected!==true)return;
+
+ if(turnOn){
+  if(blocked || lastStatus.output!==false ||
+     lastStatus.remote_control_enabled!==true || anyDirty())return;
+
+  const v=lastStatus.voltage, a=lastStatus.current;
+  if(!validOutputSetpoints(v,a)){
+   message("Output ON blocked: programmed setpoints are outside the allowed range.","error");
+   return;
+  }
+
+  if(!confirmControl('Enable HP 6033A output at '+
+     v.toFixed(3)+' V / '+a.toFixed(3)+' A current limit?'))return;
+ }else{
+  if(lastStatus.output!==true)return;
+  if(!confirmControl('Turn HP 6033A output OFF?'))return;
+ }
+
+ const authorization=await requestControlAuthorization();
+ if(!authorization)return;
+
+ busy=true;
+ showControls();
+ message(turnOn?'Enabling output...':'Disabling output...');
+
+ try{
+  const endpoint=turnOn?'/api/control/set':'/api/control/output-off';
+  const response=await fetch(endpoint,{
+   method:'POST',
+   headers:{
+    'Content-Type':'application/json',
+    'Authorization':authorization
+   },
+   body:JSON.stringify(turnOn?{key:'output',value:true}:{})
+  });
+
+  if(response.status===401){
+   controlAuthorization=null;
+   throw Error('Credentials rejected');
+  }
+
+  const result=await response.json();
+  if(!response.ok||
+     (turnOn ? result.actual!==1 :
+       result.success!==true || result.output!==false))
+   throw Error(result.error||'Output command not verified');
+
+  if(turnOn) settingsView=false;
+  message(turnOn?'Output ON verified.':'Output OFF verified.','success');
+
+ }catch(e){
+  message('Output command failed: '+e.message,'error');
+ }finally{
+  busy=false;
+  await refresh();
+  showControls();
+ }
+}
+
+el('output-on').addEventListener('click',()=>controlOutputFromClassic(true));
+el('output-off').addEventListener('click',()=>controlOutputFromClassic(false));
+
+el('remote-enable').addEventListener('click',enableRemoteFromClassic);
+
+el('adjust-select-btn').addEventListener('click',changeMode);
+el('display-settings-btn').addEventListener('click',()=>{settingsView=!settingsView;renderMeters();});
+el('adjust-minus').addEventListener('click',()=>adjust(-1));
+el('adjust-plus').addEventListener('click',()=>adjust(1));
+el('adjust-fine').addEventListener('click',()=>{if(permitted()){fine=!fine;showControls();}});
+el('adjust-discard').addEventListener('click',resetDraft);
+el('adjust-apply').addEventListener('click',applyDraft);
+const knob=el('adjust-knob');
+let pointerAngle=null,angleRemainder=0,activePointerId=null;
+function knobAngleAt(e){
+ const rect=knob.getBoundingClientRect();
+ const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+ const dx=e.clientX-cx,dy=e.clientY-cy;
+ // Ignore the very center, where tiny finger movements produce unstable angles.
+ if(Math.hypot(dx,dy)<Math.min(rect.width,rect.height)*.18)return null;
+ return Math.atan2(dy,dx)*180/Math.PI;
+}
+function endKnobGesture(){
+ pointerAngle=null;angleRemainder=0;activePointerId=null;
+ knob.classList.remove('dragging');
+}
+knob.addEventListener('pointerdown',e=>{
+ if(!permitted()||!e.isPrimary)return;
+ const angle=knobAngleAt(e);
+ if(angle===null)return;
+ pointerAngle=angle;angleRemainder=0;activePointerId=e.pointerId;
+ try{knob.setPointerCapture(e.pointerId);}catch(_){/* Pointer capture may be unavailable in older browsers. */}
+ knob.classList.add('dragging');
+ e.preventDefault();e.stopPropagation();
+});
+knob.addEventListener('pointermove',e=>{
+ if(pointerAngle===null||e.pointerId!==activePointerId||!permitted())return;
+ const angle=knobAngleAt(e);
+ if(angle===null)return;
+ let delta=angle-pointerAngle;
+ // Normalize across the -180/180 degree boundary for a continuous circular gesture.
+ if(delta>180)delta-=360;
+ if(delta<-180)delta+=360;
+ pointerAngle=angle;
+ // Clockwise motion is positive on screen and increases the setpoint.
+ angleRemainder+=delta;
+ const degreesPerStep=fine?18:5;
+ const ticks=Math.trunc(angleRemainder/degreesPerStep);
+ if(ticks){angleRemainder-=ticks*degreesPerStep;adjust(ticks);}
+ e.preventDefault();e.stopPropagation();
+});
+knob.addEventListener('pointerup',e=>{if(e.pointerId===activePointerId)endKnobGesture();});
+knob.addEventListener('pointercancel',endKnobGesture);
+knob.addEventListener('lostpointercapture',endKnobGesture);
+knob.addEventListener('wheel',e=>{if(!permitted())return;e.preventDefault();adjust(e.deltaY<0?1:-1);},{passive:false});
+knob.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowRight'){e.preventDefault();adjust(1);}else if(e.key==='ArrowDown'||e.key==='ArrowLeft'){e.preventDefault();adjust(-1);}});
+unknown();showControls();refresh();setInterval(refresh,1500);
+
+
+
+// Classic preset selection buttons — saved values only.
+const classicSavedPresets = {
+  voltage: [],
+  current: []
+};
+
+function classicRenderPresetButtons() {
+  for (const type of ['voltage', 'current']) {
+    const container = document.getElementById(
+      'classic-' + type + '-selection'
+    );
+
+    if (!container) continue;
+
+    const presets=classicSavedPresets[type];
+    const buttons=Array.from(container.children);
+    const canStage=permitted();
+    const validPreset=value=>Number.isFinite(value) && value>=0 && value<=limits[type];
+    if(buttons.length===presets.length &&
+       buttons.every((button,index)=>button.dataset.value===String(presets[index]))){
+      buttons.forEach((button,index)=>{button.disabled=!canStage||!validPreset(presets[index]);});
+      continue;
+    }
+
+    container.replaceChildren();
+
+    presets.forEach((value, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+
+      button.textContent =
+        'P' + (index + 1) + ' · ' + value +
+        (type === 'voltage' ? ' V' : ' A');
+
+      const valid=validPreset(value);
+      button.dataset.value=String(value);
+      button.disabled=!valid||!canStage;
+
+      button.title = !valid
+        ? 'Outside current hardware safety limit'
+        : 'Stage saved preset; APPLY required';
+
+      button.addEventListener('click', () => {
+        if (!permitted() || !valid) return;
+
+        saveDraft();
+        mode = type;
+        loadDraft();
+        staged = Math.round(value * 1000) / 1000;
+        dirty = Math.abs(staged - liveValue()) > .0005;
+        saveDraft();
+
+        showControls();
+
+        message(
+          dirty
+            ? 'Saved preset staged — press APPLY to write to instrument.'
+            : 'Preset matches current instrument setpoint.'
+        );
+      });
+
+      container.append(button);
+    });
+  }
+  updateClassicPresetHighlights();
+}
+
+function classicSetSavedPresets(data) {
+  for (const type of ['voltage', 'current']) {
+    const values = data[type + '_presets'];
+
+    if (!Array.isArray(values) || values.length !== 6 ||
+        values.some(v => typeof v !== 'number' || !Number.isFinite(v))) {
+      throw Error('Invalid saved ' + type + ' presets');
+    }
+
+    classicSavedPresets[type] = [...values];
+  }
+
+  classicRenderPresetButtons();
+}
+
+for (const type of ['voltage', 'current']) {
+  const grid = document.getElementById(
+    'classic-' + type + '-presets'
+  );
+
+  const heading = document.createElement('h4');
+  heading.textContent = 'Select saved ' + type + ' preset';
+
+  const buttons = document.createElement('div');
+  buttons.id = 'classic-' + type + '-selection';
+  buttons.className = 'classic-preset-grid';
+
+  grid.after(heading, buttons);
+}
+
+// Update enabled/disabled states when instrument status changes.
+setInterval(classicRenderPresetButtons, 1500);
+
+// Classic preset editor: saves settings only, never applies hardware output.
+(function(){
+  'use strict';
+
+  const voltageGrid=document.getElementById('classic-voltage-presets');
+  const currentGrid=document.getElementById('classic-current-presets');
+  const saveButton=document.getElementById('classic-save-presets');
+  const reloadButton=document.getElementById('classic-reload-presets');
+  const message=document.getElementById('classic-preset-message');
+
+  function notify(text){
+    message.textContent=text;
+  }
+
+  function makeFields(container,values,type){
+    container.replaceChildren();
+
+    values.forEach((value,index)=>{
+      const field=document.createElement('div');
+      field.className='classic-preset-field';
+
+      const label=document.createElement('label');
+      const input=document.createElement('input');
+
+      input.type='number';
+      input.min='0';
+      input.max=type==='voltage'?'20':'30';
+      input.step='any';
+      input.value=String(value);
+      input.id='classic-'+type+'-preset-'+index;
+
+      label.htmlFor=input.id;
+      label.textContent='Preset '+(index+1)+(type==='voltage'?' (V)':' (A)');
+
+      field.append(label,input);
+      container.append(field);
+    });
+  }
+
+  async function reloadPresets(){
+    reloadButton.disabled=true;
+    notify('Loading saved presets...');
+
+    try{
+      const response=await fetch('/api/status',{
+        cache:'no-store',
+        credentials:'same-origin'
+      });
+
+      if(!response.ok)throw Error('Unable to load presets');
+
+      const data=await response.json();
+
+      if(!Array.isArray(data.voltage_presets) ||
+         data.voltage_presets.length!==6 ||
+         !Array.isArray(data.current_presets) ||
+         data.current_presets.length!==6){
+        throw Error('Preset data missing from status response');
+      }
+
+      makeFields(voltageGrid,data.voltage_presets,'voltage');
+      makeFields(currentGrid,data.current_presets,'current');
+      classicSetSavedPresets(data);
+      notify('Saved presets loaded. Editing does not change output.');
+
+    }catch(error){
+      notify('Error: '+error.message);
+    }finally{
+      reloadButton.disabled=false;
+    }
+  }
+
+  function readValues(container,max){
+    const inputs=[...container.querySelectorAll('input')];
+
+    if(inputs.length!==6)throw Error('Expected six preset values');
+
+    return inputs.map(input=>{
+      if(input.value.trim()==='')throw Error('All presets require a value');
+
+      const value=Number(input.value);
+
+      if(!Number.isFinite(value)||value<0||value>max){
+        throw Error('Preset values must be between 0 and '+max);
+      }
+
+      return value;
+    });
+  }
+
+  saveButton.addEventListener('click',async()=>{
+    try{
+      const voltage=readValues(voltageGrid,20);
+      const current=readValues(currentGrid,30);
+
+      saveButton.disabled=true;
+      notify('Saving presets...');
+
+      const response=await fetch('/api/settings',{
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          voltage_presets:voltage,
+          current_presets:current
+        })
+      });
+
+      const data=await response.json();
+
+      if(!response.ok){
+        throw Error(data.error||'Preset save failed');
+      }
+
+      classicSetSavedPresets(data);
+      notify('Presets saved successfully. Power supply output unchanged.');
+
+    }catch(error){
+      notify('Error: '+error.message);
+    }finally{
+      saveButton.disabled=false;
+    }
+  });
+
+  reloadButton.addEventListener('click',reloadPresets);
+
+  reloadPresets();
+})();
+
+</script>
+</body>
+</html>

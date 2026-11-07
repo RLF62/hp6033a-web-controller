@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Command reference | HP 6033A</title><link rel="stylesheet" href="guide.css"></head>
+<body><main id="top"><header><p class="eyebrow">HP 6033A controller documentation</p>
+<h1>Command reference</h1><p class="muted">Linux administration, web APIs, and the instrument commands used by the deployed application.</p>
+<nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
+<nav aria-label="Documentation"><a href="/docs/">Guide home</a><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></header><nav aria-label="On this page"><a href="#linux">Linux and service commands</a><a href="#https">nginx and HTTPS</a><a href="#gpib">GPIB and serial diagnostics</a><a href="#api">Application endpoints</a><a href="#updates">Update and maintain</a></nav><section id="linux"><h2>Linux and service commands</h2><p>Run these on the Pi. Start with status and logs. Stop and restart interrupt the web interface.</p><pre><code>hostname
+uname -m
+cat /etc/os-release
+ip -4 addr show wlan0
+id pi
+df -h / /home/pi
+systemctl status hp6033a nginx --no-pager
+journalctl -u hp6033a -n 80 --no-pager
+ls -l /run/hp6033a/gunicorn.sock
+sudo systemctl start hp6033a
+sudo systemctl stop hp6033a
+sudo systemctl restart hp6033a
+# After changing a systemd unit or override:
+sudo systemctl daemon-reload
+sudo systemctl restart hp6033a</code></pre><p>The commands here and in Installation and Recovery describe the current deployment. A complete record of historical shell commands was unavailable.</p></section><section id="https"><h2>nginx and HTTPS</h2><pre><code>sudo nginx -t
+sudo systemctl reload nginx
+sudo journalctl -u nginx -n 50 --no-pager
+openssl x509 -in /etc/nginx/ssl/hp6033a.crt   -noout -subject -issuer -dates -ext subjectAltName
+# Check from a LAN client that trusts the certificate:
+curl -fsS https://192.168.1.100/docs/ -o /dev/null
+curl -fsS https://192.168.1.100/api/status</code></pre><p>Use reload after testing nginx changes. A TLS certificate must match the URL and be trusted by the client before the control login is used.</p></section><section id="gpib"><h2>GPIB and serial diagnostics</h2><pre><code>lsusb
+ls -l /dev/usbtmc* /dev/ttyACM*
+cd /home/pi/hp6033a
+venv/bin/pyvisa-info
+venv/bin/python -c &quot;import pyvisa; print(pyvisa.ResourceManager(&#x27;@py&#x27;).list_resources())&quot;</code></pre>
+<p>Prefer the running application's <code>GET /api/status</code> for live queries. Avoid parallel instrument sessions during direct diagnostics. The application's queries use LF termination and expect a keyword followed by a finite numeric value.</p>
+<div class="table"><table><thead><tr><th>Command</th><th>Purpose</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>VSET?</code> / <code>ISET?</code></td><td>Read programmed voltage / current.</td><td>Query</td></tr>
+<tr><td><code>VOUT?</code> / <code>IOUT?</code></td><td>Read measured voltage / current.</td><td>Query</td></tr>
+<tr><td><code>OUT?</code> / <code>STS?</code></td><td>Read output state / instrument status.</td><td>Query</td></tr>
+<tr><td><code>VSET value</code> / <code>ISET value</code></td><td>Program voltage / current. The app formats values to three decimal places.</td><td>Hardware write</td></tr>
+<tr><td><code>OUT ON</code> / <code>OUT OFF</code></td><td>Enable / disable the physical output.</td><td>Hardware write</td></tr>
+<tr><td><code>PING</code> / <code>VERSION?</code></td><td>Serial firmware diagnostics. Expected replies are <code>PONG</code> and a string starting <code>HP6033A-GPIB </code>.</td><td>Serial queries</td></tr>
+</tbody></table></div>
+<p>This is the command set used by the application. Direct writes bypass its remote-control checks.</p></section><section id="api"><h2>Application endpoints</h2>
+<dl><dt>GET /api/status</dt><dd>GPIB measurements, setpoints, mode and connection state.</dd>
+<dt>GET /api/arduino/status</dt><dd>Optional serial firmware health. <code>?force=1</code> bypasses the cache.</dd>
+<dt>POST /api/settings</dt><dd>Updates dashboard name and saved presets. Hardware settings are rejected.</dd>
+<dt>POST /api/control/enable</dt><dd>Authenticates and enables programming after instrument checks.</dd>
+<dt>POST /api/control/disable</dt><dd>Clears authorization. Output state is unaffected.</dd>
+<dt>POST /api/control/set</dt><dd>Expects a JSON object with <code>key</code> and <code>value</code>. Supported keys are <code>voltage</code>, <code>current</code> and <code>output</code>. Output takes a boolean.</dd>
+<dt>POST /api/control/output-off</dt><dd>Turns off output and verifies readback. A verified shutdown preserves authorization. A failed or unverified shutdown clears it.</dd></dl>
+<p>Typical failures are 400 for invalid input, 401 for credentials, 403 for access or authorization, 409 for enable-time instrument state, and 503 for communication or readback errors.</p></section><section id="updates"><h2>Update and maintain</h2>
+<p>Back up the app and configuration before an update. Stage new files on a spare Pi first. Preserve <code>config.json</code>, the credential files, and TLS material. Changes to Python or dependencies require restarting Gunicorn. Documentation and templates can be verified through the HTTPS pages after publishing.</p>
+<p>See <a href="/static/docs/recovery.html#backup">backup commands</a> and <a href="/static/docs/recovery.html#restore">restore commands</a> for the full sequence.</p></section>
+<footer><p class="muted">Deployed baseline inspected November 5, 2026.</p><a href="#top">Back to top</a></footer>
+</main></body></html>

@@ -1,0 +1,10 @@
+{
+  "instrument_name": "HP 6033A",
+  "gpib_resource": "",
+  "voltage": 0.0,
+  "current": 1.0,
+  "output": false,
+  "front_panel_lockout_requested": false,
+  "voltage_presets": [3.3, 5, 9, 12, 13.8, 18],
+  "current_presets": [0.5, 1, 2, 3, 5, 10]
+}

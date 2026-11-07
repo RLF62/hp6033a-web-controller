@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HP 6033A Controller Guide</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101820;--panel:#18242e;--line:#354754;--text:#eef4f7;--muted:#b6c7d1;--link:#7ee3ca}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.65 system-ui,sans-serif}
+    main{max-width:58rem;margin:auto;padding:clamp(1rem,4vw,3rem)}h1,h2,h3{line-height:1.2}h1{font-size:clamp(2rem,6vw,3.6rem);margin:.3em 0}
+    h2{margin-top:0}a{color:var(--link);text-underline-offset:.18em}a:focus-visible{outline:2px solid var(--link);outline-offset:4px}
+    nav{display:flex;gap:.4rem 1.1rem;flex-wrap:wrap}header nav{margin:1.2rem 0}section{background:var(--panel);border:1px solid var(--line);border-radius:.8rem;padding:clamp(1rem,3vw,1.6rem);margin:1.2rem 0}
+    .eyebrow{color:var(--link);font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.muted{color:var(--muted)}
+    .notice{border-left:3px solid #f0c36d;padding-left:.9rem}code{overflow-wrap:anywhere}pre{background:var(--bg);border-radius:.45rem;padding:.85rem;white-space:pre-wrap;overflow-wrap:anywhere}
+    dt{font-weight:700;margin-top:.8rem}dd{margin:0}footer{margin-top:1.5rem}
+  </style>
+</head>
+<body>
+<main id="top">
+  <header>
+    <p class="eyebrow">Project manual · HP 6033A</p>
+    <h1>Controller guide</h1>
+    <p class="muted">Operating and servicing the Raspberry Pi Zero 2 W controller.</p>
+    <nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
+  </header>
+  <nav aria-label="On this page">
+    <a href="#overview">System overview</a><a href="#operation">Operation</a><a href="#diagnostics">Diagnostics</a><a href="#maintenance">Maintenance</a><a href="#interfaces">Interfaces</a>
+  </nav>
+  <section id="documentation"><h2>Documentation library</h2><p>Use the detailed pages for operation, commands, fresh installation, and recovery.</p><nav aria-label="Documentation"><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></section>
+  <section id="overview">
+    <h2>System overview</h2>
+    <p>The browser talks to nginx on <code>hp6033a</code> at <code>192.168.1.100</code>. nginx proxies requests to Gunicorn over <code>/run/hp6033a/gunicorn.sock</code>. The Flask application uses PyVISA with the Python backend to reach the supply through USB-to-GPIB. A separate USB serial probe reports the interface firmware and response time.</p>
+    <dl>
+      <dt>Modern dashboard</dt><dd>Live readings, GPIB interface status, history, presets and remote programming controls.</dd>
+      <dt>Classic front panel</dt><dd>Instrument-style readback and staged voltage/current adjustment. Apply submits the staged value through the same server checks as the Modern dashboard.</dd>
+    </dl>
+  </section>
+  <section id="operation">
+    <h2>Operation</h2>
+    <p>In <strong>Live Read Only</strong>, the controller queries the supply for setpoints, voltage, current and output state. The status API currently reports regulation as unknown. Use the GPIB connection indicator before interpreting a reading. When GPIB fails, the API reports output as unknown and measured values default to zero.</p>
+    <ol>
+      <li>To program the supply, confirm its output is off and the existing setpoints are within the controller limits. Authorize remote programming from either dashboard with the control login.</li>
+      <li>With output confirmed off, apply a voltage from 0 to 20 V and a current limit from 0 to 30 A. A selected preset turns green immediately on either dashboard. Press Apply to send the staged settings and see the instrument readback. Reset discards staged changes and restores the highlight to the programmed values. The supply is autoranging. The maximum voltage and maximum current are separate setpoint limits. Available simultaneous output depends on the instrument's power envelope.</li>
+      <li>Before enabling output, verify the load and applied setpoints. The server checks that output is off and requires a current setpoint of at least 0.001 A for output-on.</li>
+      <li>Use <strong>Output OFF</strong> to request shutdown and check the confirmation. The controller keeps the current remote programming authorization after confirming output is off. If it cannot verify shutdown, it clears authorization.</li>
+    </ol>
+    <p class="notice">Disabling remote programming and restarting the web service both clear permission to program the supply. Neither action issues a hardware output-off command. If the controller loses communication, check the supply directly.</p>
+  </section>
+  <section id="diagnostics">
+    <h2>Diagnostics</h2>
+    <dl>
+      <dt>Controller page unavailable</dt><dd>Check LAN access, nginx, the <code>hp6033a</code> service and its Unix socket. A 502 from nginx points to an upstream connection problem.</dd>
+      <dt>GPIB disconnected or readings unavailable</dt><dd>Check supply power and USB/GPIB connections, then inspect the application log. The configured VISA resource is in <code>app.py</code>. The serial probe can respond even when GPIB queries fail.</dd>
+      <dt>Interface firmware unavailable</dt><dd>The serial probe opens <code>/dev/ttyACM0</code> by default at 115200 baud and sends <code>PING</code> and <code>VERSION?</code>. Check the device path, permissions and whether another process has the port open. The service can override the path using <code>HP6033A_ARDUINO_PORT</code>.</dd>
+      <dt>Programming rejected</dt><dd>Check the control login, the remote programming state and the actual supply settings. If a command fails during readback, verify the instrument state directly before retrying.</dd>
+    </dl>
+    <pre><code>hostname
+systemctl status hp6033a nginx --no-pager
+journalctl -u hp6033a -n 80 --no-pager
+ls -l /run/hp6033a/gunicorn.sock /dev/ttyACM0</code></pre>
+  </section>
+  <section id="maintenance">
+    <h2>Maintenance and recovery inventory</h2>
+    <dl>
+      <dt>Application at <code>/home/pi/hp6033a</code></dt><dd>Keep <code>app.py</code>, <code>templates/</code>, <code>static/</code>, <code>docs/</code>, <code>config.json</code>, <code>scripts/</code> and the dependency list. Record the working Python and OS versions and the USB device permissions before rebuilding the virtual environment.</dd>
+      <dt>Service and web configuration</dt><dd>Preserve <code>/etc/systemd/system/hp6033a.service</code> and the nginx site linked from <code>/etc/nginx/sites-enabled/hp6033a</code>. Record the TLS configuration and back up private keys and both control credential files separately with restricted access.</dd>
+      <dt>After a restore</dt><dd>Check the web routes, the service log, GPIB readback and the separate serial probe. Verify programming and output control only during an intentional hardware test. Historical archives are available under the project and in the Pi user's home directory. A full restore from those archives has yet to be verified for this guide.</dd>
+    </dl>
+  </section>
+  <section id="interfaces">
+    <h2>Web interfaces</h2>
+    <dl>
+      <dt><code>GET /api/status</code></dt><dd>Returns live GPIB measurements, setpoints, output state, saved presets and remote programming state.</dd>
+      <dt><code>GET /api/arduino/status</code></dt><dd>Returns cached serial diagnostics. Add <code>?force=1</code> to request a fresh probe.</dd>
+      <dt><code>POST /api/settings</code></dt><dd>Updates saved dashboard settings such as the instrument name and preset lists.</dd>
+      <dt><code>POST /api/control/…</code></dt><dd>Authenticated endpoints for <code>enable</code>, <code>disable</code>, <code>set</code> and <code>output-off</code>. The deployed nginx configuration restricts access to the local network and loopback.</dd>
+    </dl>
+  </section>
+  <footer><p class="muted">Verified against the deployed controller on November 5, 2026.</p><a href="#top">Back to top</a></footer>
+</main>
+</body>
+</html>
