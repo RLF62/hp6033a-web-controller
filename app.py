@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 from pathlib import Path
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-import json, threading, math, os, time
+import hashlib, json, re, socket, threading, math, os, time
 app=Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 ROOT=Path(__file__).resolve().parent
@@ -89,6 +89,53 @@ def classic_dual():
         auth_mode_editable=proxy_control_auth_mode() == "2",
         limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT)
     )
+
+UPDATE_SOCKET = "/run/hp6033a-update.sock"
+
+
+def installed_software():
+    try:
+        version = json.loads((ROOT / ".hp6033a-version.json").read_text())
+        tag, commit = version["release"], version["commit"]
+        if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) and re.fullmatch(r"[a-f0-9]{40}", commit):
+            return {"tag": tag, "display": f"{tag} ({commit[:12]})"}
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    fingerprint = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:12]
+    return {"tag": None, "display": f"Unversioned ({fingerprint})"}
+
+
+def software_update_request(payload):
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+            connection.settimeout(5)
+            connection.connect(UPDATE_SOCKET)
+            connection.sendall(json.dumps(payload).encode() + b"\n")
+            with connection.makefile("rb") as stream:
+                response = json.loads(stream.readline(8192))
+        result, code = response["body"], response["code"]
+    except (OSError, ValueError, KeyError, TypeError):
+        result, code = {"error": "Software update helper is unavailable."}, 503
+    if payload == {"action": "status"}:
+        result["installed"] = installed_software()
+    return jsonify(result), code, {"Cache-Control": "no-store"}
+
+
+@app.route('/api/software-updates', methods=['GET', 'POST'])
+def software_updates():
+    if not request.is_secure:
+        return jsonify(error="Use the controller HTTPS address."), 403
+    if request.method == "GET":
+        return software_update_request({"action": "status"})
+    if request.headers.get("Origin") != f"https://{request.host}":
+        return jsonify(error="Update request must come from the controller page."), 403
+    if not request.is_json or request.content_length is None or request.content_length > 4096:
+        return jsonify(error="Expected a small JSON update request."), 400
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or payload.get("action") not in ("check", "authorize", "install"):
+        return jsonify(error="Unknown software update request."), 400
+    return software_update_request(payload)
+
 
 @app.get('/docs/')
 def docs():return send_from_directory(ROOT/'docs','index.html')

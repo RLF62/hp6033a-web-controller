@@ -1,0 +1,12 @@
+[Unit]
+Description=HP 6033A software update request socket
+
+[Socket]
+ListenStream=/run/hp6033a-update.sock
+SocketUser=root
+SocketGroup=www-data
+SocketMode=0660
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

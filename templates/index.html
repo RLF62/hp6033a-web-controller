@@ -276,9 +276,11 @@ Enable Remote Control
  </button>
 </div></div>
 <p id="setpoints" class="muted"></p><p id="msg" role="status"></p></section><section class="card"><div class="split"><div><h2>Front panel lockout</h2><div class="muted">Request GPIB Local Lockout (LLO) to prevent front-panel changes once hardware support is installed.</div></div><label class="inputrow"><input type="checkbox" id="llo" onchange="post({front_panel_lockout_requested:this.checked})"><span>Request lockout</span></label></div><div class="statusrow"><span class="pill warn" id="llo_status">NOT APPLIED - SIMULATION ONLY</span></div><p class="note">Read-only mode: lockout changes are disabled. LLO disables the LCL/LOCAL return-to-local function while remote control is active. Actual lockout must be confirmed by the GPIB controller before displaying LOCKED.</p></section>
+<a id="update-notice" href="#software-updates" style="grid-column:1 / -1" hidden></a>
 <details class="card" style="grid-column:1 / -1">
   <summary>Setup</summary>
   {% include "control_preferences.html" %}
+  {% include "software_updates.html" %}
 </details>
 <footer class="foot"><a href="/docs/">Project documentation</a> · HP 6033A · live read-only</footer></main><script>
 const $=id=>document.getElementById(id);

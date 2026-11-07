@@ -71,5 +71,12 @@ systemctl reload nginx</code></pre>
 <li>Move <code>previous</code> back to <code>~/hp6033a</code>. Start only <code>hp6033a.service</code>, verify the HTTPS status, then remove the pending marker. If the original tree or runtime cannot be located, preserve the archives and use the replacement-install procedure. The updater leaves system configuration in place, so the system archive is for separate recovery if needed.</li>
 </ol>
 </section>
+<section id="web-updater"><h2>Dashboard update recovery</h2>
+<p>The Software Updates panel shows a job ID. The helper records its job status across an application restart. For a failed job, inspect its log and the helper service journal from an administrator account. Substitute the displayed job ID.</p>
+<pre><code>sudo journalctl -u hp6033a-update.service -n 80 --no-pager
+sudo less /var/lib/hp6033a-update/JOB_ID/worker.log</code></pre>
+<p>Web jobs store the system archive and its checksum under the root-only job directory. The app backup under <code>~/.hp6033a-backup-*</code> contains <code>system-backup.json</code> pointing to that archive. Check both sets of checksums before restoring. If the dashboard reports recovery required, follow the <a href="#updater">in-place updater recovery</a> procedure. Keep the pending marker until the old application and its HTTPS status are verified.</p>
+<p>If initial provisioning failed, inspect the helper journal and unit status. The main controller can continue operating without the update helper. Preserve <code>/var/lib/hp6033a-update</code>, which contains the administrator credential hash, job records and private system backups.</p>
+</section>
 <footer><p class="muted">Development setup documentation updated November 7, 2026.</p><a href="#top">Back to top</a></footer>
 </main></body></html>

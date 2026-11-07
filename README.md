@@ -95,6 +95,24 @@ An unversioned legacy install is identified by an app file fingerprint.
 The updater requires connected readback with output off and remote programming
 disabled. See [recovery](static/docs/recovery.html) for backup and rollback.
 
+### Software Updates in the dashboards
+
+On a fresh installation, opt in to Software Updates when prompted and create
+a separate update administrator password. Open Setup in Modern or
+Setup & Extra Controls in Classic to see the installed version, latest
+published stable GitHub release, release notes, and update status.
+The helper checks GitHub every six hours. Installing requires confirming a
+specific version and commit with the update administrator password, even
+when power-supply control is password-free.
+
+For an existing deployment, first install the compatible application using
+the verified CLI updater, then provision the helper once from the reviewed
+checkout. See the [installation guide](static/docs/installation.html#web-updates).
+Release discovery uses published, non-prerelease GitHub releases with a stable
+version tag. The helper leaves settings, Nginx, and TLS configuration in place
+and keeps protected system backups. It stops if the instrument is disconnected,
+the physical output cannot be confirmed off, or remote programming is enabled.
+
 ### Control authentication and dashboard settings
 
 The installer defaults to password-protected control and creates a separate

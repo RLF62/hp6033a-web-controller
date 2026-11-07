@@ -75,21 +75,22 @@ The installer and recovery guides cover the verified bootstrap, private
 backups and manual recovery. Use \`bash update.sh --check\` for periodic
 read-only checks. Release publication and production commissioning are separate.
 
-### Proposed web update design
+### Dashboard Software Updates
 
-Keep release checks and notes unprivileged. A scheduled check may cache stable
-release metadata for the dashboards. Installing requires administrator
-reauthentication, a same-origin POST, and explicit approval of a single tag
-and commit. The approval must expire and be usable only once.
+Modern and Classic share the Software Updates section. The root-owned
+systemd helper checks GitHub on startup and every six hours. The Flask
+application forwards small JSON requests over a Unix socket restricted to
+the controller UID. The helper checks a separate administrator password and
+issues a short-lived, single-use approval bound to a published stable tag and
+commit. It rechecks the pin before an unprivileged worker fetches and verifies
+the release.
 
-Use a separate root-owned systemd helper with a small fixed request format.
-It should verify an approved release manifest, accept no shell commands,
-caller-supplied paths or service names, and operate only on the controller's
-backup, activation and rollback paths. Flask should have no sudo rights.
-Stage and inspect releases as an unprivileged user, then have the helper
-validate the staged content before switching the application. Report progress
-through a read-only job status and retain an audit log. Web-based updates
-remain a proposal pending a separate security review.
+Privileged operations use a private worker channel with a fixed backup and
+controller-service stop/start sequence. The helper retains system archives
+under its root-only job directory. The worker uses the CLI transaction for
+application backup, activation, read-only verification and automatic
+rollback. It also verifies that the new dashboard reconnects to the helper.
+See the installation and recovery guides for provisioning and job logs.
 
 ## Original Improvement Requests
 

@@ -1059,6 +1059,14 @@ PYVERIFY
     echo "Control preferences: Setup in Modern or Setup & Extra Controls in Classic."
     echo "Use the controller credentials to change the authentication mode."
     echo "Documentation: https://${CONTROLLER_HOST}/docs/"
+
+    local web_updates
+    if [[ -t 0 ]] && read -r -p "Enable Software Updates in the dashboards? [y/N]: " web_updates &&
+       [[ "$web_updates" == [yY] ]]; then
+        if ! sudo bash "$SOURCE_DIR/deploy/install-web-updater.sh" "$APP_USER" "https://${CONTROLLER_HOST}"; then
+            echo "The controller is working. See the installation guide to recover Software Updates setup." >&2
+        fi
+    fi
 }
 
 

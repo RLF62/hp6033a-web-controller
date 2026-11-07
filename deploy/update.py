@@ -39,6 +39,14 @@ class UpdateError(RuntimeError):
     pass
 
 
+class RollbackComplete(UpdateError):
+    pass
+
+
+class RollbackFailed(UpdateError):
+    pass
+
+
 def run(*args, timeout=30, **kwargs):
     try:
         return subprocess.run(args, check=True, timeout=timeout, **kwargs)
@@ -422,8 +430,8 @@ class Controller:
     def validate_system(self):
         run("sudo", "nginx", "-t")
 
-    def backup_system(self, destination):
-        paths = [UNIT, SITE, ENABLED_SITE, Path("/etc/nginx/nginx.conf")]
+    def backup_system(self, destination, privilege=("sudo",), extra=()):
+        paths = [UNIT, SITE, ENABLED_SITE, Path("/etc/nginx/nginx.conf"), *extra]
         for path in (Path("/etc/nginx/hp6033a.htpasswd"), Path("/etc/udev/rules.d/99-usbgpib.rules")):
             if present(path):
                 paths.append(path)
@@ -433,11 +441,11 @@ class Controller:
         paths += [Path(path) for path in envfiles if present(Path(path))]
         paths += [path for files in self.security.values() for path in files]
         for path in list(paths):
-            resolved = output("sudo", "readlink", "-e", "--", str(path)).strip()
+            resolved = output(*privilege, "readlink", "-e", "--", str(path)).strip()
             if resolved and Path(resolved) != path:
                 paths.append(Path(resolved))
         with destination.open("xb") as archive:
-            run("sudo", "tar", "-C", "/", "-czf", "-", "--",
+            run(*privilege, "tar", "-C", "/", "-czf", "-", "--",
                 *(str(path).lstrip("/") for path in sorted(set(paths))),
                 stdout=archive, timeout=120)
         destination.chmod(0o600)
@@ -528,7 +536,7 @@ def apply_update(app, source, version, controller, reuse, connected):
         prepare_credentials(candidate, controller.mode, controller.security["auth_basic_user_file"])
         validate_candidate(candidate, python)
         controller.validate_system()
-        controller.backup_system(backup / "system.tar.gz")
+        system_backup = controller.backup_system(backup / "system.tar.gz") or "system.tar.gz"
         write_json(backup / "update.json", {
             "app": str(app), "target": version, "reused_venv": reuse,
             "new_environment": str(new_env) if new_env else None,
@@ -550,7 +558,7 @@ def apply_update(app, source, version, controller, reuse, connected):
             prepare_credentials(candidate, controller.mode, controller.security["auth_basic_user_file"])
             backup_application(app, backup / "application.tar.gz")
             with (backup / "SHA256SUMS").open("x") as sums:
-                run("sha256sum", "application.tar.gz", "system.tar.gz", cwd=backup, stdout=sums)
+                run("sha256sum", "application.tar.gz", system_backup, cwd=backup, stdout=sums)
             app.rename(previous)
             if reuse:
                 (previous / "venv").rename(candidate / "venv")
@@ -564,11 +572,11 @@ def apply_update(app, source, version, controller, reuse, connected):
                     restore_application(app, backup, controller, reuse, connected)
                     pending.unlink()
                 except Exception as restore_error:
-                    raise UpdateError(
+                    raise RollbackFailed(
                         f"Automatic rollback could not be verified: {restore_error}. "
                         f"Keep {backup} and {pending}. See the recovery guide."
                     ) from restore_error
-            raise UpdateError(f"Previous application restored and checked. Backup: {backup}") from error
+            raise RollbackComplete(f"Previous application restored and checked. Backup: {backup}") from error
 
         activated = True
         pending.unlink()

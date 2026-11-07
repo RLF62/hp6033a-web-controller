@@ -4,7 +4,7 @@
 <body><main id="top"><header><p class="eyebrow">HP 6033A controller documentation</p>
 <h1>Installation</h1><p class="muted">Rebuild the controller on a fresh Raspberry Pi OS installation.</p>
 <nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
-<nav aria-label="Documentation"><a href="/docs/">Guide home</a><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></header><nav aria-label="On this page"><a href="#prep">Prepare the Pi</a><a href="#installer">Run the installer</a><a href="#config">Connect the supply</a><a href="#upgrade">Existing installations</a><a href="#verify">Verification script</a></nav>
+<nav aria-label="Documentation"><a href="/docs/">Guide home</a><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></header><nav aria-label="On this page"><a href="#prep">Prepare the Pi</a><a href="#installer">Run the installer</a><a href="#config">Connect the supply</a><a href="#upgrade">Existing installations</a><a href="#web-updates">Software Updates</a><a href="#verify">Verification script</a></nav>
 <section id="prep"><h2>Prepare the Pi</h2>
 <p class="notice">Clean-install validation on fresh Raspberry Pi OS is pending. Use a spare Pi or SD card for testing.</p>
 <ol>
@@ -70,6 +70,13 @@ bash update.sh --release '&lt;stable-tag&gt;' --expect-commit '&lt;full-commit&g
 <p>The older one-worker Pi 3 layout is supported when its unit, Unix socket, HTTPS site and credential format pass the compatibility checks. The updater can preserve a legacy VISA resource stored as a literal in the app. If the old Nginx site still controls authentication, the updater retains that policy. To move to dashboard-managed authentication separately after verifying the upgrade, use the existing command below.</p>
 <pre><code>sudo bash ~/hp6033a/deploy/set-control-auth.sh dashboard</code></pre>
 <p>Reload the page and open <a href="/#control-setup">Setup in Modern</a> or <a href="/classic-dual#control-setup">Setup &amp; Extra Controls in Classic</a>.</p>
+</section>
+<section id="web-updates"><h2>Set up dashboard Software Updates</h2>
+<p>The fresh installer offers this option after the controller starts. Choose an update administrator password of at least 12 characters. It is separate from the power-supply control credentials and applies even when control is password-free.</p>
+<p>For an existing controller, first apply the verified CLI upgrade. Keep dashboard-managed authentication enabled. From the same reviewed release checkout, provision the helper once as an administrator. Substitute the actual service user and existing HTTPS URL.</p>
+<pre><code>sudo bash deploy/install-web-updater.sh pi https://hp6033a.local</code></pre>
+<p>Use the controller's installed certificate and HTTPS address. The privileged helper is installed under <code>/usr/local/lib/hp6033a-update</code>. Future web upgrades update the dashboard application. Changes to the privileged helper require a separately reviewed administrator installation.</p>
+<p>In either dashboard, open Setup and select <strong>Check for Updates</strong>. The helper also checks every six hours. A published stable release provides its version, commit and release notes. Select <strong>Install Update</strong>, review the version and commit, then confirm with the update administrator password. Leave the USB-GPIB adapter connected, the physical output off, and remote programming disabled. The page reconnects after the application service restarts and shows the final result.</p>
 </section>
 <section id="verify"><h2>Verification script</h2><p>After installation, reconnect the USB adapter to apply the udev rules and open a fresh SSH session. Save the block below as <code>verify.sh</code>. Run it from a trusted client with Bash, curl and Python 3. Add <code>--require-gpib</code> during commissioning with the adapter and supply connected. Use a trusted certificate, or point curl to a verified copy of the controller certificate with <code>CURL_CA_BUNDLE</code>.</p><pre><code>#!/usr/bin/env bash
 set -euo pipefail

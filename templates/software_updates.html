@@ -1,0 +1,151 @@
+<fieldset id="software-updates" style="min-width:0;margin:.75rem 0;padding:.75rem">
+  <legend>Software Updates</legend>
+  <dl>
+    <dt>Installed</dt><dd id="update-installed">Checking…</dd>
+    <dt>Latest stable release</dt><dd id="update-latest">Checking…</dd>
+  </dl>
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
+    <button type="button" id="update-check" style="min-height:44px">Check for Updates</button>
+    <a id="update-notes" target="_blank" rel="noopener noreferrer" hidden>Release Notes</a>
+    <button type="button" id="update-install" style="min-height:44px" disabled>Install Update</button>
+  </div>
+  <p id="update-status" role="status" aria-live="polite">Connecting to the update helper…</p>
+  <p id="update-job" role="status" aria-live="polite"></p>
+  <a href="/static/docs/installation.html#web-updates">Setup guide</a> ·
+  <a href="/static/docs/recovery.html#web-updater">Update recovery guide</a>
+</fieldset>
+
+<dialog id="update-confirm" aria-labelledby="update-confirm-title" style="width:min(90vw,24rem);box-sizing:border-box">
+  <form id="update-form" method="dialog">
+    <h3 id="update-confirm-title">Install software update?</h3>
+    <p id="update-target" style="overflow-wrap:anywhere"></p>
+    <p>Leave the supply connected with its output off and remote programming disabled. The controller dashboard may briefly disconnect.</p>
+    <label for="update-password">Update administrator password</label>
+    <input type="password" id="update-password" required maxlength="256" autocomplete="current-password" style="display:block;width:100%;box-sizing:border-box">
+    <p id="update-confirm-status" role="status"></p>
+    <button type="button" id="update-cancel" style="min-height:44px">Cancel</button>
+    <button type="submit" id="update-submit" style="min-height:44px">Confirm and install</button>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const el = id => document.getElementById('update-' + id);
+  const active = new Set(['queued', 'downloading', 'staging', 'backup', 'activation', 'verification']);
+  const dialog = el('confirm');
+  let latest = null;
+  let selected = null;
+  let timer;
+  let refreshing = false;
+  let submitting = false;
+
+  function newer(tag, installed) {
+    if (!installed) return true;
+    const a = tag.slice(1).split('.').map(Number);
+    const b = installed.slice(1).split('.').map(Number);
+    return a.some((part, index) => a.slice(0, index).every((value, n) => value === b[n]) && part > b[index]);
+  }
+
+  async function request(payload) {
+    const options = {cache: 'no-store'};
+    if (payload) {
+      options.method = 'POST';
+      options.headers = {'Content-Type': 'application/json'};
+      options.body = JSON.stringify(payload);
+    }
+    const response = await fetch('/api/software-updates', options);
+    const data = await response.json();
+    if (!response.ok && !(response.status === 503 && data.installed)) {
+      throw Error(data.error || 'Update request failed.');
+    }
+    return data;
+  }
+
+  async function refresh() {
+    if (refreshing) return;
+    clearTimeout(timer);
+    refreshing = true;
+    let delay = 60000;
+    try {
+      const data = await request();
+      latest = data.latest || null;
+      const job = data.job;
+      const running = job && active.has(job.phase);
+      const available = latest && newer(latest.tag, data.installed.tag);
+      el('installed').textContent = data.installed.display;
+      el('latest').textContent = latest ? latest.tag : 'No stable release found';
+      el('check').disabled = Boolean(data.checking);
+      el('install').disabled = !available || Boolean(running || data.check_error);
+      el('notes').hidden = !latest;
+      if (latest) {
+        el('notes').href = 'https://github.com/RLF62/hp6033a-web-controller/releases/tag/' + encodeURIComponent(latest.tag);
+      }
+      const notice = el('notice');
+      notice.hidden = !available || Boolean(data.check_error);
+      notice.textContent = available ? 'Software update available · ' + latest.tag : '';
+      el('status').textContent = data.error || (data.check_error ? 'GitHub release check failed. Try again shortly.'
+        : data.checking ? 'Checking GitHub for a stable release…'
+        : available ? 'A newer stable release is available.'
+        : data.checked_at ? 'Last checked ' + new Date(data.checked_at * 1000).toLocaleString() : 'Waiting for the first release check.');
+      if (job) {
+        el('job').textContent = job.tag + ' · ' + job.message + ' (job ' + job.id + ')';
+      }
+      if (running || data.checking) delay = 2500;
+    } catch {
+      el('status').textContent = 'Cannot reach the update helper. Checking again shortly.';
+      el('install').disabled = true;
+      el('check').disabled = false;
+      delay = 3000;
+    } finally {
+      refreshing = false;
+      timer = setTimeout(refresh, delay);
+    }
+  }
+
+  el('check').addEventListener('click', async () => {
+    el('check').disabled = true;
+    try {
+      await request({action: 'check'});
+      await refresh();
+    } catch (error) {
+      el('status').textContent = error.message;
+      el('check').disabled = false;
+    }
+  });
+
+  el('install').addEventListener('click', () => {
+    if (!latest || submitting) return;
+    selected = {tag: latest.tag, commit: latest.commit};
+    el('target').textContent = selected.tag + ' · ' + selected.commit;
+    el('password').value = '';
+    el('confirm-status').textContent = '';
+    dialog.showModal();
+  });
+  el('cancel').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('cancel', event => { if (submitting) event.preventDefault(); });
+  dialog.addEventListener('close', () => { el('password').value = ''; });
+  el('form').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (submitting || !selected) return;
+    submitting = true;
+    el('submit').disabled = true;
+    el('cancel').disabled = true;
+    el('confirm-status').textContent = 'Authorizing the selected release…';
+    const payload = {action: 'authorize', ...selected, password: el('password').value};
+    el('password').value = '';
+    try {
+      const authorized = await request(payload);
+      await request({action: 'install', ...selected, approval: authorized.approval});
+      dialog.close();
+      await refresh();
+    } catch (error) {
+      el('confirm-status').textContent = error.message;
+    } finally {
+      submitting = false;
+      el('submit').disabled = false;
+      el('cancel').disabled = false;
+    }
+  });
+  refresh();
+})();
+</script>

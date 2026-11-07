@@ -1,0 +1,25 @@
+[Unit]
+Description=HP 6033A software update supervisor
+Requires=hp6033a-update.socket
+After=hp6033a-update.socket network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Sockets=hp6033a-update.socket
+ExecStart=/usr/bin/python3 -E -s -B /usr/local/lib/hp6033a-update/web_update.py serve
+Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin
+User=root
+Group=root
+UMask=0077
+StateDirectory=hp6033a-update
+StateDirectoryMode=0700
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
