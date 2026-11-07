@@ -30,7 +30,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location ^~ /api/control/ {
-        if ($http_origin != "https://CONTROLLER_HOST") {
+        if ($http_origin != "https://$host") {
             return 403;
         }
 

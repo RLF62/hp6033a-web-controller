@@ -426,3 +426,38 @@ class MainSequenceSafetyTests(unittest.TestCase):
             "Automatic activation is disabled pending final security review.",
             self.main
         )
+
+
+class NginxOriginSecurityTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        template = (
+            Path(__file__).resolve().parents[1]
+            / "deploy"
+            / "nginx.conf.example"
+        )
+        cls.nginx = template.read_text(encoding="utf-8")
+
+    def test_control_origin_uses_request_host(self):
+        self.assertIn(
+            'if ($http_origin != "https://$host") {',
+            self.nginx
+        )
+
+    def test_mismatched_origin_still_returns_forbidden(self):
+        location = self.nginx.split(
+            "location ^~ /api/control/", 1
+        )[1].split("\n    }", 1)[0]
+
+        self.assertIn("return 403;", location)
+
+    def test_origin_is_not_hardcoded_to_controller_ip(self):
+        self.assertNotIn(
+            'if ($http_origin != "https://CONTROLLER_HOST") {',
+            self.nginx
+        )
+        self.assertNotIn(
+            'if ($http_origin != "https://192.168.1.177") {',
+            self.nginx
+        )
