@@ -151,7 +151,7 @@ check_installation_conflicts
 
 class NginxConflictBehaviorTests(unittest.TestCase):
 
-    def run_nginx_check(self, nginx_test_ok=True, listeners=""):
+    def run_nginx_check(self, nginx_test_ok=True, listeners="", nginx_installed=True):
         import subprocess
 
         script = INSTALLER.read_text(encoding="utf-8")
@@ -161,6 +161,14 @@ class NginxConflictBehaviorTests(unittest.TestCase):
 
         mock = f"""
 set -euo pipefail
+
+command() {{
+    if [[ "$*" == "-v nginx" ]]; then
+        [[ {nginx_installed!r} == True ]]
+        return
+    fi
+    builtin command "$@"
+}}
 
 sudo() {{
     if [[ "$*" == "nginx -t" ]]; then
@@ -182,6 +190,11 @@ check_nginx_conflicts
             text=True,
             timeout=10,
         )
+
+    def test_nginx_not_installed_accepted(self):
+        result = self.run_nginx_check(nginx_installed=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("not installed", result.stdout)
 
     def test_existing_listener_rejected(self):
         result = self.run_nginx_check(
@@ -402,8 +415,8 @@ class MainSequenceSafetyTests(unittest.TestCase):
             "collect_network_settings",
             "run_preflight_checks",
             "confirm_installation",
-            "install_dependencies",
             "install_application",
+            "install_dependencies",
             "initialize_configuration",
             "configure_usbgpib",
             "install_systemd_service",
@@ -423,6 +436,13 @@ class MainSequenceSafetyTests(unittest.TestCase):
         ]
 
         self.assertEqual(positions, sorted(positions))
+
+    def test_application_created_before_virtual_environment(self):
+        """The application directory must exist before venv creation."""
+        self.assertLess(
+            self.main.index("install_application"),
+            self.main.index("install_dependencies"),
+        )
 
     def test_main_does_not_activate_services(self):
         import re

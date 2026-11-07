@@ -29,7 +29,7 @@
   <section id="documentation"><h2>Documentation library</h2><p>Use the detailed pages for operation, commands, fresh installation, and recovery.</p><nav aria-label="Documentation"><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></section>
   <section id="overview">
     <h2>System overview</h2>
-    <p>The browser talks to nginx on <code>hp6033a</code> at <code>192.168.1.100</code>. nginx proxies requests to Gunicorn over <code>/run/hp6033a/gunicorn.sock</code>. The Flask application uses PyVISA with the Python backend to reach the supply through USB-to-GPIB. A separate USB serial probe reports the interface firmware and response time.</p>
+    <p>The browser talks to nginx on <code>hp6033a</code> at <code>CONTROLLER_IP</code>. nginx proxies requests to Gunicorn over <code>/run/hp6033a/gunicorn.sock</code>. The Flask application uses PyVISA with the Python backend to reach the supply through USB-to-GPIB. A separate USB serial probe reports the interface firmware and response time.</p>
     <dl>
       <dt>Modern dashboard</dt><dd>Live readings, GPIB interface status, history, presets and remote programming controls.</dd>
       <dt>Classic front panel</dt><dd>Instrument-style readback and staged voltage/current adjustment. Apply submits the staged value through the same server checks as the Modern dashboard.</dd>

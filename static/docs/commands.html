@@ -22,9 +22,12 @@ sudo systemctl restart hp6033a</code></pre><p>The commands here and in Installat
 sudo systemctl reload nginx
 sudo journalctl -u nginx -n 50 --no-pager
 openssl x509 -in /etc/nginx/ssl/hp6033a.crt   -noout -subject -issuer -dates -ext subjectAltName
-# Check from a LAN client that trusts the certificate:
-curl -fsS https://192.168.1.100/docs/ -o /dev/null
-curl -fsS https://192.168.1.100/api/status</code></pre><p>Use reload after testing nginx changes. A TLS certificate must match the URL and be trusted by the client before the control login is used.</p></section><section id="gpib"><h2>GPIB and serial diagnostics</h2><pre><code>lsusb
+# Set this to your controller's IP address or hostname:
+CONTROLLER_HOST="hp6033a.local"
+
+# Check the documentation and API endpoints:
+curl -fsS "https://${CONTROLLER_HOST}/docs/" -o /dev/null
+curl -fsS "https://${CONTROLLER_HOST}/api/status"</code></pre><p>Use reload after testing nginx changes. A TLS certificate must match the URL and be trusted by the client before the control login is used.</p></section><section id="gpib"><h2>GPIB and serial diagnostics</h2><pre><code>lsusb
 ls -l /dev/usbtmc* /dev/ttyACM*
 cd /home/pi/hp6033a
 venv/bin/pyvisa-info

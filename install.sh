@@ -293,6 +293,11 @@ verify_authentication() {
 check_nginx_conflicts() {
     echo "Checking existing Nginx configuration..."
 
+    if ! command -v nginx >/dev/null 2>&1; then
+        echo "Nginx is not installed; it will be installed later."
+        return 0
+    fi
+
     if ! sudo nginx -t; then
         echo "ERROR: Existing Nginx configuration is invalid." >&2
         return 1
@@ -903,8 +908,12 @@ main() {
         return "$confirmation_status"
     fi
 
-    install_dependencies
     install_application
+    install_dependencies
+
+    # Recheck after apt installs Nginx, which may enable a default site.
+    check_nginx_conflicts
+
     initialize_configuration
     configure_usbgpib
     install_systemd_service
