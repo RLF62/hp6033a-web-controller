@@ -74,8 +74,21 @@ install_application() {
           "$SOURCE_DIR/deploy" \
           "$APP_DIR/" || return 1
 
+    record_install_release || return 1
     echo "Application files installed in $APP_DIR"
 }
+
+record_install_release() {
+    local top release commit
+    top="$(git -C "$SOURCE_DIR" rev-parse --show-toplevel 2>/dev/null)" || return 0
+    [[ "$top" == "$SOURCE_DIR" ]] || return 0
+    [[ -z "$(git -C "$SOURCE_DIR" status --porcelain)" ]] || return 0
+    release="$(git -C "$SOURCE_DIR" describe --tags --exact-match HEAD 2>/dev/null)" || return 0
+    [[ "$release" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || return 0
+    commit="$(git -C "$SOURCE_DIR" rev-parse HEAD)" || return 0
+    ( umask 077; printf '{"release":"%s","commit":"%s"}\n' "$release" "$commit" > "$APP_DIR/.hp6033a-version.json" )
+}
+
 
 initialize_configuration() {
     echo "Initializing HP 6033A configuration..."

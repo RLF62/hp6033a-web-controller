@@ -71,6 +71,30 @@ After installation, open the HTTPS URL displayed by the installer. Your browser 
 
 The installer will not overwrite an existing HP 6033A installation.
 
+### Versioned installation and upgrades
+
+The [installation guide](static/docs/installation.html) includes a single
+command that downloads a pinned stable GitHub tag, verifies its full commit
+and Git objects, and starts the installer. Get the tag and commit from a
+reviewed [release](https://github.com/RLF62/hp6033a-web-controller/releases).
+
+For a first upgrade, use the download command in the installation guide with
+its update arguments. You can also run the updater from a reviewed release
+checkout. It downloads the selected stable tag itself. Replace the placeholders and use
+the controller's current HTTPS address.
+
+```bash
+bash update.sh --check
+bash update.sh --release '<stable-tag>' --expect-commit '<full-commit>' --url https://hp6033a.local --dry-run
+bash update.sh --release '<stable-tag>' --expect-commit '<full-commit>' --url https://hp6033a.local
+```
+
+`--check` is safe to run periodically as the controller user. It reports stable
+tags and release links. Applying an upgrade is a separate, explicit command.
+An unversioned legacy install is identified by an app file fingerprint.
+The updater requires connected readback with output off and remote programming
+disabled. See [recovery](static/docs/recovery.html) for backup and rollback.
+
 ### Control authentication and dashboard settings
 
 The installer defaults to password-protected control and creates a separate

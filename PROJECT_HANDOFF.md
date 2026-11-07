@@ -66,6 +66,31 @@ git@github.com:RLF62/hp6033a-web-controller.git
   Fresh installations enable it automatically. The clean-install warning still applies.
 - Production remains a separate deployment.
 
+## In-place updater
+
+The updater uses an explicit stable tag and reviewed full commit, stages the
+application and runtime, then switches the app directory after stopping only
+the controller service. It preserves the existing Nginx and systemd policies.
+The installer and recovery guides cover the verified bootstrap, private
+backups and manual recovery. Use \`bash update.sh --check\` for periodic
+read-only checks. Release publication and production commissioning are separate.
+
+### Proposed web update design
+
+Keep release checks and notes unprivileged. A scheduled check may cache stable
+release metadata for the dashboards. Installing requires administrator
+reauthentication, a same-origin POST, and explicit approval of a single tag
+and commit. The approval must expire and be usable only once.
+
+Use a separate root-owned systemd helper with a small fixed request format.
+It should verify an approved release manifest, accept no shell commands,
+caller-supplied paths or service names, and operate only on the controller's
+backup, activation and rollback paths. Flask should have no sudo rights.
+Stage and inspect releases as an unprivileged user, then have the helper
+validate the staged content before switching the application. Report progress
+through a read-only job status and retain an audit log. Web-based updates
+remain a proposal pending a separate security review.
+
 ## Original Improvement Requests
 
 ### 1. Verify the .250 Fix

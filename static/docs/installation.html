@@ -15,12 +15,37 @@
 <p><a href="https://www.raspberrypi.com/documentation/computers/getting-started.html">Raspberry Pi Imager and first-boot instructions</a></p>
 </section>
 <section id="installer"><h2>Run the repository installer</h2>
-<p>Run these commands as the controller user. The installer invokes sudo for system configuration.</p>
-<pre><code>sudo apt update
-sudo apt install -y git
-git clone https://github.com/RLF62/hp6033a-web-controller.git
-cd hp6033a-web-controller
-bash install.sh</code></pre>
+<p>Choose a stable tag and full commit from the reviewed <a href="https://github.com/RLF62/hp6033a-web-controller/releases">GitHub release notes</a>. Replace both placeholders in this single command and paste it as the controller user. The command fetches the exact tag, checks the Git objects and commit, then runs the verified installer.</p>
+<pre><code>bash -c &#x27;
+set -euo pipefail
+release=$1
+commit=$2
+[[ $release =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+[[ $commit =~ ^[a-f0-9]{40}$ ]]
+(( EUID != 0 ))
+if ! command -v git &gt;/dev/null; then
+  sudo apt-get update
+  sudo apt-get install -y git
+fi
+work=$(mktemp -d)
+trap &quot;rm -rf -- \&quot;\$work\&quot;&quot; EXIT
+ref=refs/tags/$release
+git -C &quot;$work&quot; init --quiet
+git -C &quot;$work&quot; fetch --depth=1 --no-tags \
+  https://github.com/RLF62/hp6033a-web-controller.git &quot;$ref:$ref&quot;
+actual=$(git -C &quot;$work&quot; rev-parse &quot;$ref^{commit}&quot;)
+[[ $actual == &quot;$commit&quot; ]] || { echo &quot;Release commit mismatch&quot; &gt;&amp;2; exit 1; }
+git -C &quot;$work&quot; fsck --strict --no-dangling
+git -C &quot;$work&quot; checkout --quiet --detach &quot;$actual&quot;
+case ${3:-install} in
+  install) bash &quot;$work/install.sh&quot; ;;
+  update)
+    url=${4:?Supply the existing HTTPS URL}
+    bash &quot;$work/update.sh&quot; --release &quot;$release&quot; --expect-commit &quot;$commit&quot; --url &quot;$url&quot; &quot;${@:5}&quot;
+    ;;
+  *) echo &quot;Choose install or update&quot; &gt;&amp;2; exit 2 ;;
+esac
+&#x27; _ &#x27;&lt;stable-tag&gt;&#x27; &#x27;&lt;full-commit-from-release-notes&gt;&#x27;</code></pre>
 <p>Enter the address and allowed subnet. Accept the default password protection or choose password-free control for a trusted LAN without internet exposure. Create the separate controller credentials in either mode. They are always required to change the password policy from Setup.</p>
 <p>The installer configures the service, USB permissions, and Nginx. It verifies the HTTPS status endpoint and Setup on both dashboards before enabling startup. Use the HTTPS URL it reports. The supplied certificate is self-signed. Verify the address and trust the correct certificate on your clients before submitting credentials.</p>
 </section>
@@ -35,8 +60,14 @@ nano config.json
 sudo systemctl restart hp6033a</code></pre>
 <p>Set <code>gpib_resource</code> in <code>config.json</code> to the matching USB VISA resource before restarting. Check <code>/api/status</code> and confirm that GPIB is connected and the readings match the front panel.</p>
 </section>
-<section id="upgrade"><h2>Existing installations</h2>
-<p>Back up the controller before updating its app, templates, and deployment scripts from a matching release. The installer refuses to overwrite an existing app directory. After updating the files and reloading the application, enable dashboard-managed authentication once if the Setup button is disabled.</p>
+<section id="upgrade"><h2>Upgrade an existing controller</h2>
+<p>For a first migration, use the verified download command above and append <code>update https://YOUR_CONTROLLER --dry-run</code> after the commit argument. Remove <code>--dry-run</code> when ready to apply. You can also run the commands below from a reviewed release checkout as the controller user. The updater downloads the selected stable release directly from GitHub. The existing app directory is upgraded in place.</p>
+<pre><code>bash update.sh --check
+bash update.sh --release '&lt;stable-tag&gt;' --expect-commit '&lt;full-commit&gt;' --url https://hp6033a.local --dry-run
+bash update.sh --release '&lt;stable-tag&gt;' --expect-commit '&lt;full-commit&gt;' --url https://hp6033a.local</code></pre>
+<p>Use the controller's actual HTTPS URL. By default the health check trusts the installed self-signed certificate. Pass <code>--ca-cert</code> with the trusted CA file if the site uses another certificate. The check connects to this Pi over loopback and validates the supplied hostname or IP.</p>
+<p>Review the preview before applying. Close both dashboards, leave the supply connected with output off, and disable remote programming. The updater checks these conditions and reads status over HTTPS. It backs up the application and system files privately and restarts only the controller service. The Nginx site, TLS material, credential policy, and systemd unit stay in place. A failed activation triggers rollback.</p>
+<p>The older one-worker Pi 3 layout is supported when its unit, Unix socket, HTTPS site and credential format pass the compatibility checks. The updater can preserve a legacy VISA resource stored as a literal in the app. If the old Nginx site still controls authentication, the updater retains that policy. To move to dashboard-managed authentication separately after verifying the upgrade, use the existing command below.</p>
 <pre><code>sudo bash ~/hp6033a/deploy/set-control-auth.sh dashboard</code></pre>
 <p>Reload the page and open <a href="/#control-setup">Setup in Modern</a> or <a href="/classic-dual#control-setup">Setup &amp; Extra Controls in Classic</a>.</p>
 </section>
