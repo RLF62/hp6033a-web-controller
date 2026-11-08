@@ -17,6 +17,22 @@ Developed and successfully tested with a real HP 6033A.
 - Authentication for protected control operations
 - Built-in documentation and command reference
 
+## Screenshots
+
+### Classic front panel
+
+![Classic HP 6033A front panel with LED-style voltage and current readouts and the adjustment knob](screenshots/classic-dashboard.png)
+
+### Modern dashboard
+
+![Modern HP 6033A dashboard with live readings, voltage and current presets, and output controls](screenshots/modern-dashboard.png)
+
+### Classic setup and extra controls
+
+![Classic setup panel with control preferences, Software Updates, and editable front-panel labels](screenshots/classic-setup.png)
+
+This example shows the Software Updates panel with the optional update helper unavailable.
+
 ## Verified Hardware
 
 - Hewlett-Packard HP 6033A programmable DC power supply
