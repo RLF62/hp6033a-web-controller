@@ -496,9 +496,13 @@ def configure(user, url):
     url = update.read_url(url)
     if (STATE / "config.json").exists():
         raise update.UpdateError("An updater configuration already exists")
+    print("Software update administrator password requirements: 12 to 256 characters.")
+    print("This password is separate from the controller password. Enter it twice.")
     password = getpass.getpass("New software update administrator password: ")
-    if not 12 <= len(password) <= 256 or password != getpass.getpass("Repeat administrator password: "):
-        raise update.UpdateError("Passwords must match and contain at least 12 characters")
+    if not 12 <= len(password) <= 256:
+        raise update.UpdateError("Administrator password must contain 12 to 256 characters")
+    if password != getpass.getpass("Repeat administrator password: "):
+        raise update.UpdateError("Administrator passwords do not match")
     salt = secrets.token_bytes(32)
     os.umask(0o077)
     update.write_json(STATE / "config.json", {

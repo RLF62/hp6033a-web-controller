@@ -36,14 +36,16 @@ import os
 import sys
 
 username, destination = sys.argv[1:]
-password = getpass.getpass("Controller password: ")
-confirm = getpass.getpass("Confirm password: ")
-
-if not password or password != confirm:
-    sys.exit("Passwords do not match or are empty.")
+print("Controller password requirements: 1 to 72 UTF-8 bytes (72 ASCII characters).")
+password = getpass.getpass("Controller password: ").encode("utf-8")
+if not 1 <= len(password) <= 72:
+    sys.exit("Controller password must be 1 to 72 UTF-8 bytes.")
+confirm = getpass.getpass("Confirm password: ").encode("utf-8")
+if password != confirm:
+    sys.exit("Controller passwords do not match.")
 
 hashed = bcrypt.hashpw(
-    password.encode("utf-8"),
+    password,
     bcrypt.gensalt()
 ).decode("ascii")
 

@@ -46,7 +46,7 @@ case ${3:-install} in
   *) echo &quot;Choose install or update&quot; &gt;&amp;2; exit 2 ;;
 esac
 &#x27; _ &#x27;&lt;stable-tag&gt;&#x27; &#x27;&lt;full-commit-from-release-notes&gt;&#x27;</code></pre>
-<p>Enter the address and allowed subnet. Accept the default password protection or choose password-free control for a trusted LAN without internet exposure. Create the separate controller credentials in either mode. They are always required to change the password policy from Setup.</p>
+<p>Enter the address and allowed subnet. Accept the default password protection or choose password-free control for a trusted LAN without internet exposure. Create the separate controller credentials in either mode. The controller password must be 1 to 72 UTF-8 bytes (up to 72 ASCII characters). Enter the same password at both prompts. The credentials are always required to change the password policy from Setup.</p>
 <p>The installer configures the service, USB permissions, and Nginx. It verifies the HTTPS status endpoint and Setup on both dashboards before enabling startup. Use the HTTPS URL it reports. The supplied certificate is self-signed. Verify the address and trust the correct certificate on your clients before submitting credentials.</p>
 </section>
 <section id="config"><h2>Connect the supply and configure VISA</h2>
@@ -72,7 +72,7 @@ bash update.sh --release '&lt;stable-tag&gt;' --expect-commit '&lt;full-commit&g
 <p>Reload the page and open <a href="/#control-setup">Setup in Modern</a> or <a href="/classic-dual#control-setup">Setup &amp; Extra Controls in Classic</a>.</p>
 </section>
 <section id="web-updates"><h2>Set up dashboard Software Updates</h2>
-<p>The fresh installer offers this option after the controller starts. Choose an update administrator password of at least 12 characters. It is separate from the power-supply control credentials and applies even when control is password-free.</p>
+<p>The fresh installer offers this option after the controller starts. Choose an update administrator password of 12 to 256 characters and enter it twice. It is separate from the power-supply control credentials and applies even when control is password-free.</p>
 <p>For an existing controller, first apply the verified CLI upgrade. Keep dashboard-managed authentication enabled. From the same reviewed release checkout, provision the helper once as an administrator. Substitute the actual service user and existing HTTPS URL.</p>
 <pre><code>sudo bash deploy/install-web-updater.sh pi https://hp6033a.local</code></pre>
 <p>Use the controller's installed certificate and HTTPS address. The privileged helper is installed under <code>/usr/local/lib/hp6033a-update</code>. Future web upgrades update the dashboard application. Changes to the privileged helper require a separately reviewed administrator installation.</p>
