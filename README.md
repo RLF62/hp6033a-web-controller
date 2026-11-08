@@ -53,10 +53,11 @@ Thanks to the developer for making this hardware interface available.
 
 ## Installation
 
-**Status: Clean-install validation pending. Do not use on production systems yet.**
+**Validated on fresh Raspberry Pi OS Lite (64-bit) in HTTPS and HTTP-only modes.**
 
-On a fresh Raspberry Pi OS installation, download this repository and open a
-terminal in the project directory as the user who will run the controller.
+On a fresh Raspberry Pi OS installation, download and extract the
+[GitHub main ZIP](https://github.com/RLF62/hp6033a-web-controller/archive/refs/heads/main.zip)
+and open a terminal in the extracted project directory as the controller user.
 The installer uses `sudo` for system setup.
 
     bash install.sh
@@ -68,20 +69,20 @@ dashboard passwords. Anyone on the allowed subnet can enable remote control
 in HTTP-only mode. Browser updates require HTTPS. Command-line updates support
 both modes.
 
-Enter the controller hostname or IP and its permitted LAN subnet. The installer
-validates the status API and both dashboards before enabling automatic startup.
-Open the URL displayed by the installer. Follow the
-[installation guide](static/docs/installation.html) for the setup choices and
-USB-GPIB configuration.
+Enter the controller hostname or IP and its permitted LAN subnet. When prompted,
+reconnect the USB-GPIB adapter. Setup saves its VISA address if exactly one
+supported adapter is detected, or prints manual steps if needed. After checking
+the status API and both dashboards and enabling automatic startup, setup prints
+the dashboard URL. See the [installation guide](static/docs/installation.html).
 
 The installer will not overwrite an existing HP 6033A installation.
 
 ### Versioned installation and upgrades
 
-The [installation guide](static/docs/installation.html) includes a single
-command that downloads a pinned stable GitHub tag, verifies its full commit
-and Git objects, and starts the installer. Get the tag and commit from a
-reviewed [release](https://github.com/RLF62/hp6033a-web-controller/releases).
+When a reviewed stable release is available, the [installation guide](static/docs/installation.html)
+shows how to download its pinned tag, verify the full commit and Git objects,
+and start the installer. Get the tag and commit from the
+[release notes](https://github.com/RLF62/hp6033a-web-controller/releases).
 
 For a first upgrade, use the download command in the installation guide with
 its update arguments. You can also run the updater from a reviewed release
@@ -130,7 +131,7 @@ instrument panel to find the confirmation and control password settings. Changin
 credentials. A mode change disarms remote programming and leaves the power
 supply's physical output in its current state.
 
-Fresh installs enable the dashboard button. To enable it on a previously
+Fresh HTTPS installs enable the authentication policy button. To enable it on a previously
 installed controller after updating its application and deployment scripts,
 run this once on the Raspberry Pi:
 
@@ -166,7 +167,7 @@ Never rely on software alone for electrical safety.
 - HP 6033A communication: Verified
 - Raspberry Pi 3 B+ operation: Verified
 - Web controller: Operational
-- Automated installer: Under development
+- Clean installer: HTTPS and HTTP-only verified on fresh Raspberry Pi OS Lite (64-bit)
 - Other HP models: Not yet tested
 
 ## Contributions

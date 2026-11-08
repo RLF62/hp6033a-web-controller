@@ -6,7 +6,8 @@
 <nav aria-label="Controller pages"><a href="/">Modern dashboard</a><a href="/classic-dual">Classic front panel</a></nav>
 <nav aria-label="Documentation"><a href="/docs/">Guide home</a><a href="/static/docs/project.html">Project manual</a><a href="/static/docs/commands.html">Command reference</a><a href="/static/docs/installation.html">Installation</a><a href="/static/docs/recovery.html">Recovery and maintenance</a></nav></header><nav aria-label="On this page"><a href="#baseline">Identify a known-good release</a><a href="#backup">Create a private backup</a><a href="#restore">Restore onto a replacement SD card</a><a href="#maintenance">Maintenance and rollback</a></nav><section id="baseline"><h2>Identify a known-good release</h2>
 <p>Record the date, source revision, tested web URL, OS and Python versions, USB adapter ID and GPIB resource. Save checksums of the exact app, dashboard templates, documentation, pinned requirements, systemd unit, nginx site, and udev rules. Keep the record with each backup.</p>
-<p>For each known-good deployment, record its test date, controller hostname and IP address, OS and Python versions, USB adapter ID, and GPIB resource. Record which dashboard and documentation routes were verified, and whether a bare-card restore and control commissioning have been tested. Treat older archives as historical until checked.</p></section><section id="backup"><h2>Create a private backup</h2><p>Save the block as <code>backup.sh</code>. Run it when no one is editing presets or deploying changes. The archive contains TLS keys and password hashes. Store it in a root-only directory and copy it to protected storage off the Pi. This is an application and configuration backup. Keep a separate SD-card image if you need the entire operating system.</p><pre><code>#!/usr/bin/env bash
+<p>Clean installation was verified in HTTPS and HTTP-only modes on fresh Raspberry Pi OS Lite (64-bit). Backup restoration is a separate procedure. Verify it on a spare card before relying on a restored controller.</p>
+<p>For each known-good deployment, record its test date, controller hostname and IP address, OS and Python versions, USB adapter ID, and GPIB resource. Record which dashboard and documentation routes were verified, and whether a bare-card restore and control commissioning have been tested. Treat older archives as historical until checked.</p></section><section id="backup"><h2>Create a private backup</h2><p>Save the block as <code>backup.sh</code>. Run it when no one is editing presets or deploying changes. An HTTPS archive can contain TLS private keys and password hashes. HTTP-only installations omit those files. Store it in a root-only directory and copy it to protected storage off the Pi. This is an application and configuration backup. Keep a separate SD-card image if you need the entire operating system.</p><pre><code>#!/usr/bin/env bash
 # Run as root. Store the resulting archive and checksum privately.
 set -euo pipefail
 umask 077
@@ -18,13 +19,13 @@ items=(
   home/pi/hp6033a/app.py home/pi/hp6033a/templates
   home/pi/hp6033a/docs home/pi/hp6033a/static
   home/pi/hp6033a/requirements.txt home/pi/hp6033a/deploy
-  home/pi/hp6033a/.control_htpasswd
   etc/systemd/system/hp6033a.service
-  etc/nginx/sites-available/hp6033a etc/nginx/hp6033a.htpasswd
-  etc/nginx/ssl/hp6033a.crt etc/nginx/ssl/hp6033a.key
+  etc/nginx/sites-available/hp6033a
   etc/udev/rules.d/99-usbgpib.rules
 )
 for item in home/pi/hp6033a/config.json home/pi/hp6033a/.control_auth_mode \
+            home/pi/hp6033a/.control_htpasswd etc/nginx/hp6033a.htpasswd \
+            etc/nginx/ssl/hp6033a.crt etc/nginx/ssl/hp6033a.key \
             home/pi/hp6033a/scripts \
             etc/systemd/system/hp6033a.service.d; do
   if [[ -e &quot;$item&quot; ]]; then items+=(&quot;$item&quot;); fi
@@ -46,9 +47,9 @@ tar -xzf controller.tar.gz -C &quot;$stage&quot; --no-same-owner --no-same-permi
 printf &#x27;Restore staging: %s
 &#x27; &quot;$stage&quot;</code></pre>
 <ol start="3">
-<li>Use the recorded source revision and follow the <a href="/static/docs/installation.html">Installation page</a> on the replacement Pi. Use password protection for the initial restore.</li>
+<li>Use the recorded source revision and follow the <a href="/static/docs/installation.html">Installation page</a> on the replacement Pi. Choose the recorded connection mode. For HTTPS, use password protection during initial commissioning. Use HTTP-only mode on a trusted LAN.</li>
 <li>Compare the backed-up <code>config.json</code> with the replacement configuration. Restore the presets and display labels. Verify the VISA resource on the replacement adapter before restarting the service.</li>
-<li>Keep the new controller credentials or restore both matching credential files together with the permissions shown below. The example assumes the controller user is <code>pi</code>. Use TLS material that matches the replacement address.</li>
+<li>For HTTPS, keep the new controller credentials or restore both matching credential files together with the permissions shown below. Skip the credential commands for an HTTP-only restore. The example assumes the controller user is <code>pi</code>. Use TLS material that matches the replacement address.</li>
 </ol>
 <pre><code># Run as root with $stage from the extraction step.
 install -o pi -g pi -m 0600 "$stage/home/pi/hp6033a/.control_htpasswd" /home/pi/hp6033a/.control_htpasswd
@@ -57,7 +58,7 @@ nginx -t
 systemctl reload nginx</code></pre>
 <ol start="6">
 <li>Use the installation verification script and confirm read-only GPIB measurements. Confirm the old Pi is offline before reusing its address.</li>
-<li>Review the saved authentication policy. If password-free control is appropriate on the replacement LAN, use dashboard Setup to change it after commissioning.</li>
+<li>For HTTPS, review the saved authentication policy in dashboard Setup after commissioning. HTTP-only operation uses password-free controls and command-line updates.</li>
 </ol></section><section id="maintenance"><h2>Maintenance and rollback</h2>
 <p>Run the health checks before and after updates. For a failed app update, recover the app and matching dependency versions from the same known-good archive. Preserve newer settings only if compatible. Take a private backup of the current state before replacing files.</p>
 <p>Confirm the physical output is off before stopping or restarting the service. Validate any nginx change with <code>sudo nginx -t</code> before reload. After rollback, verify all web routes and GPIB status with the same checks used during commissioning.</p>
@@ -78,5 +79,5 @@ sudo less /var/lib/hp6033a-update/JOB_ID/worker.log</code></pre>
 <p>Web jobs store the system archive and its checksum under the root-only job directory. The app backup under <code>~/.hp6033a-backup-*</code> contains <code>system-backup.json</code> pointing to that archive. Check both sets of checksums before restoring. If the dashboard reports recovery required, follow the <a href="#updater">in-place updater recovery</a> procedure. Keep the pending marker until the old application and its HTTPS status are verified.</p>
 <p>If initial provisioning failed, inspect the helper journal and unit status. The main controller can continue operating without the update helper. Preserve <code>/var/lib/hp6033a-update</code>, which contains the administrator credential hash, job records and private system backups.</p>
 </section>
-<footer><p class="muted">Development setup documentation updated November 7, 2026.</p><a href="#top">Back to top</a></footer>
+<footer><p class="muted">Recovery documentation updated November 8, 2026.</p><a href="#top">Back to top</a></footer>
 </main></body></html>

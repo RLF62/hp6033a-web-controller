@@ -14,9 +14,6 @@ Production:
 
 Development:
 - Raspberry Pi Zero 2 W
-- Hostname: hp6033a-test
-- IP: 192.168.1.178
-- SSH user: pi
 - OS: Debian 13 Trixie
 - Working application: /home/pi/hp6033a
 - Git repository: /home/pi/hp6033a-github-update
@@ -26,12 +23,12 @@ Development:
 
 - Python Flask application
 - Gunicorn application server
-- Nginx HTTPS reverse proxy
+- Nginx reverse proxy with HTTPS and LAN-only HTTP installation modes
 - systemd service: hp6033a.service
 - PyVISA / PyVISA-py
 - USB-GPIB interface
 - Browser-based modern and classic interfaces
-- HTTPS status endpoint: /api/status
+- Status endpoint: /api/status over the installed protocol
 
 The test controller has successfully communicated with the real HP 6033A.
 
@@ -47,23 +44,23 @@ git@github.com:RLF62/hp6033a-web-controller.git
 
 ## Installer Status
 
-- Installer syntax verification passed.
-- 53 automated tests passed during development.
-- HTTPS status API tested successfully.
-- Nginx and systemd integration tested on the development Pi.
-- Clean installation on fresh Raspberry Pi OS NOT YET VERIFIED.
-- Do not remove the README testing warning until clean-install validation succeeds.
+- Both HTTPS and HTTP-only clean installations passed on fresh Raspberry Pi OS Lite (64-bit) using the tested installer changes through 05da363.
+- Setup checks the status API and both dashboards, confirms the service is running and enabled, and prints the dashboard URL for the selected scheme.
+- Interactive USB-GPIB setup prompts for a reconnect and saves the VISA address when it detects exactly one supported adapter. The completion summary includes manual steps when needed.
+- The complete automated suite covers installation, authentication, dashboard update behavior and rollback. Production upgrades and bare-card backup restoration are separate validation tasks.
 
 ## Development Status
 
 - The wired-address origin fix is in the installer template and passed development
   HTTPS origin checks. The production Android wired-path retest is pending.
 - Modern Setup and Classic Setup & Extra Controls group the saved confirmation
-  preference and the control password setting. Authentication changes require
-  controller credentials in either mode. Classic labels and the password
-  visibility buttons are implemented.
-- The existing development Pi has dashboard-managed authentication enabled.
-  Fresh installations enable it automatically. The clean-install warning still applies.
+  preference and the control password setting. In HTTPS installations, changing
+  the password policy requires the controller credentials, including when control
+  is password-free. HTTP-only installations skip credentials and dashboard policy
+  changes. Classic labels and password visibility buttons are implemented.
+- Fresh HTTPS installations enable dashboard-managed control authentication.
+  Dashboard Software Updates is optional on HTTPS and uses a separate administrator
+  password. HTTP-only installations use the command-line updater.
 - Production remains a separate deployment.
 
 ## In-place updater
@@ -92,7 +89,7 @@ application backup, activation, read-only verification and automatic
 rollback. It also verifies that the new dashboard reconnects to the helper.
 See the installation and recovery guides for provisioning and job logs.
 
-## Original Improvement Requests
+## Historical Improvement Requests
 
 ### 1. Verify the .250 Fix
 
@@ -124,7 +121,7 @@ Password-free control must not be enabled for an internet-exposed controller wit
 
 ### 3. Persistent Confirmation Preference
 
-The "Skip control confirmation popups" setting currently resets when the browser is closed.
+The original request was to persist the "Skip control confirmation popups" setting across browser sessions.
 
 Requirements:
 - Remember the setting across page reloads.
@@ -191,8 +188,9 @@ The application cannot customize Chrome's native HTTP Basic Authentication dialo
 4. Add password visibility controls.
 5. Implement optional authentication and post-install configuration.
 6. Update installer tests and documentation.
-7. Complete fresh-install validation.
+7. Record fresh-install validation for both connection modes.
 8. Review and publish approved changes.
+9. Before a stable release, exercise published-release discovery, upgrade and rollback on spare hardware.
 
 ## Work Mode Instructions
 
