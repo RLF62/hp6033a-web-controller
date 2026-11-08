@@ -315,16 +315,21 @@ def validate_service(properties, app, user):
 def nginx_details(site):
     content = site.read_text()
     if (not re.search(rf"^\s*proxy_pass\s+http://unix:{re.escape(SOCKET)}:?;", content, re.M)
-            or not re.search(r"^\s*deny all;", content, re.M)
-            or not re.search(r"^\s*listen\s+[^;]*\b443\s+ssl\b", content, re.M)):
-        raise UpdateError("Unsupported HP 6033A Nginx HTTPS site")
-    directives = re.findall(r"^\s*proxy_set_header X-HP6033A-Password-Free ([0-2]);",
+            or not re.search(r"^\s*deny all;", content, re.M)):
+        raise UpdateError("Unsupported HP 6033A Nginx site")
+    directives = re.findall(r"^\s*proxy_set_header X-HP6033A-Password-Free ([0-3]);",
                             content, re.M)
     if directives and (len(directives) != 2 or len(set(directives)) != 1):
         raise UpdateError("Inconsistent Nginx authentication policy")
     mode = directives[0] if directives else "0"
+    if mode == "3":
+        if (re.findall(r"^\s*listen\s+([^;]+);", content, re.M) != ["80"]
+                or 'if ($http_origin != "http://$host")' not in content):
+            raise UpdateError("Expected the LAN-only HTTP controller site")
+    elif not re.search(r"^\s*listen\s+[^;]*\b443\s+ssl\b", content, re.M):
+        raise UpdateError("Unsupported HP 6033A Nginx HTTPS site")
     auth = re.findall(r"^\s*auth_basic\s+([^;]+);", content, re.M)
-    if len(auth) != 1 or (auth[0].strip() == "off") != (mode in ("1", "2")):
+    if len(auth) != 1 or (auth[0].strip() == "off") != (mode in ("1", "2", "3")):
         raise UpdateError("Unrecognized Nginx control authentication policy")
     security_files = {"ssl_certificate": [], "ssl_certificate_key": [], "auth_basic_user_file": []}
     for key in security_files:
@@ -333,7 +338,10 @@ def nginx_details(site):
             if len(parts) != 1 or not parts[0].startswith("/") or "$" in parts[0]:
                 raise UpdateError(f"Unsupported Nginx {key} path")
             security_files[key].append(Path(parts[0]))
-    if not security_files["ssl_certificate"] or not security_files["ssl_certificate_key"]:
+    if mode == "3":
+        if any(security_files.values()):
+            raise UpdateError("Unexpected credentials or TLS files in the HTTP-only site")
+    elif not security_files["ssl_certificate"] or not security_files["ssl_certificate_key"]:
         raise UpdateError("Nginx TLS certificate or key path was not found")
     if mode == "0" and len(security_files["auth_basic_user_file"]) != 1:
         raise UpdateError("Expected the legacy Nginx controller credential file")
@@ -386,6 +394,9 @@ def prepare_credentials(candidate, mode, nginx_auth):
 class Controller:
     def __init__(self, url, ca, properties, mode, security):
         self.url = url
+        self.scheme = "http" if mode == "3" else "https"
+        if urlsplit(url).scheme != self.scheme:
+            raise UpdateError(f"Use the installed controller's {self.scheme.upper()} URL")
         self.ca = ca
         self.properties = properties
         self.mode = mode
@@ -393,9 +404,11 @@ class Controller:
 
     def get(self, route):
         host = urlsplit(self.url).hostname
-        return output("curl", "--disable", "--noproxy", "*", "--proto", "=https",
+        port = 443 if self.scheme == "https" else 80
+        tls = ("--cacert", str(self.ca)) if self.scheme == "https" else ()
+        return output("curl", "--disable", "--noproxy", "*", "--proto", f"={self.scheme}",
                       "--fail", "--silent", "--show-error", "--max-time", "8",
-                      "--resolve", f"{host}:443:127.0.0.1", "--cacert", str(self.ca),
+                      "--resolve", f"{host}:{port}:127.0.0.1", *tls,
                       self.url + route, timeout=10)
 
     def status(self):
@@ -410,7 +423,7 @@ class Controller:
             raise UpdateError("The supply output must be confirmed OFF before an update")
         return status["gpib_connected"]
 
-    def check_https(self, previously_connected, pages):
+    def check_health(self, previously_connected, pages):
         for attempt in range(6):
             try:
                 connected = self.status()
@@ -508,7 +521,7 @@ def restore_application(app, backup, controller, reuse, connected):
         previous.rename(app)
     if not controller.active():
         controller.start()
-    controller.check_https(connected, pages=False)
+    controller.check_health(connected, pages=False)
 
 
 def apply_update(app, source, version, controller, reuse, connected):
@@ -564,7 +577,7 @@ def apply_update(app, source, version, controller, reuse, connected):
                 (previous / "venv").rename(candidate / "venv")
             candidate.rename(app)
             controller.start()
-            controller.check_https(connected, pages=True)
+            controller.check_health(connected, pages=True)
         except BaseException as error:
             print(f"Activation failed: {error}. Restoring the previous application.", file=sys.stderr)
             with rollback_signals():
@@ -580,22 +593,23 @@ def apply_update(app, source, version, controller, reuse, connected):
 
         activated = True
         pending.unlink()
-        print(f"Updated to {version['release']}. HTTPS checks passed. Backup: {backup}")
+        print(f"Updated to {version['release']}. Dashboard checks passed. Backup: {backup}")
     finally:
         if new_env and not activated and not pending.exists():
             shutil.rmtree(new_env)
 
 
-def read_url(value):
+def read_url(value, *, schemes=("https", "http")):
     try:
         parts = urlsplit(value)
-        if (parts.scheme == "https" and parts.netloc.lower() == parts.hostname
+        if (parts.scheme in schemes and parts.netloc.lower() == parts.hostname
                 and re.fullmatch(r"[A-Za-z0-9.-]+", parts.hostname or "")
                 and parts.path in ("", "/") and not parts.query and not parts.fragment):
             return value.rstrip("/")
     except ValueError:
         pass
-    raise argparse.ArgumentTypeError("Use the existing https://hostname-or-IPv4 URL without a port")
+    protocol = " or ".join(scheme.upper() for scheme in schemes)
+    raise argparse.ArgumentTypeError(f"Use the existing controller {protocol} URL without a port")
 
 
 def interrupted(signum, frame):
@@ -608,7 +622,7 @@ def main():
     action.add_argument("--check", action="store_true", help="list stable GitHub tags without installing")
     action.add_argument("--release", help="stable version tag, for example v1.2.3")
     parser.add_argument("--expect-commit", help="reviewed full commit from the release notes (required to apply)")
-    parser.add_argument("--url", type=read_url, help="existing HTTPS controller URL")
+    parser.add_argument("--url", type=read_url, help="existing controller HTTP or HTTPS URL")
     parser.add_argument("--ca-cert", type=Path, default=CERTIFICATE,
                         help="trusted CA or the installed self-signed controller certificate")
     parser.add_argument("--dry-run", action="store_true")
@@ -663,8 +677,8 @@ def main():
         else:
             print("Release files already match; an unversioned install can still record the release.")
         print("Preserve: settings, labels, credentials, auth mode, TLS, Nginx and systemd configuration.")
-        print("Activation: stop/start hp6033a.service only, then run read-only HTTPS checks.")
-        if mode != "2":
+        print(f"Activation: stop/start hp6033a.service only, then run read-only {controller.scheme.upper()} checks.")
+        if mode in ("0", "1"):
             print("Existing Nginx authentication policy will be retained. See the guide for optional migration.")
         if args.dry_run:
             print("Dry run complete. No installation, backup or service changes.")

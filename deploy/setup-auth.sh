@@ -23,7 +23,9 @@ if [[ ! -x "$APP_DIR/venv/bin/python" ]]; then
     exit 1
 fi
 
-read -r -p "Controller username: " USERNAME
+echo "Create a controller username and password for the HP 6033A dashboard."
+echo "Use this pair for protected power-supply controls and to change the control password policy in Setup."
+read -r -p "New controller username: " USERNAME
 if [[ -z "$USERNAME" || "$USERNAME" == *:* ]]; then
     echo "Invalid username." >&2
     exit 1

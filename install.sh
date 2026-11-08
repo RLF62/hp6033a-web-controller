@@ -249,6 +249,10 @@ configure_nginx() {
     local generated="$APP_DIR/hp6033a.nginx.generated"
     local renderer="$APP_DIR/deploy/render-control-auth.py"
 
+    if [[ "$CONTROLLER_SCHEME" == http ]]; then
+        template="$APP_DIR/deploy/nginx-http.conf.example"
+    fi
+
     if [[ ! -f "$template" ]]; then
         echo "ERROR: Nginx template is missing." >&2
         return 1
@@ -264,7 +268,13 @@ configure_nginx() {
         return 1
     fi
 
-    python3 "$renderer" dashboard "$template" | sed \
+    {
+        if [[ "$CONTROLLER_SCHEME" == https ]]; then
+            python3 "$renderer" dashboard "$template"
+        else
+            cat "$template"
+        fi
+    } | sed \
         -e "s|CONTROLLER_HOST|$CONTROLLER_HOST|g" \
         -e "s|LAN_SUBNET|$LAN_SUBNET|g" > "$generated"
 
@@ -453,7 +463,7 @@ confirm_installation() {
     echo "Installation will configure:"
     echo "  - Python application and dependencies"
     echo "  - USB-GPIB device permissions"
-    echo "  - HTTPS and LAN-restricted control (${CONTROL_AUTH_MODE:-protected})"
+    echo "  - ${CONTROLLER_SCHEME^^} and LAN-restricted control ($CONTROL_AUTH_MODE)"
     echo "  - Nginx reverse proxy"
     echo "  - systemd service"
     echo
@@ -504,7 +514,6 @@ configure_authentication() {
     # Mark authentication setup as started before creating files.
     # This also covers a failure after only one file is created.
     AUTH_CREATED=true
-    echo "Set the credentials used to change the control password policy."
     bash "$auth_script" "$APP_DIR" "$APP_USER" || return 1
 
     if [[ "${CONTROL_AUTH_MODE:-protected}" == password-free ]]; then
@@ -761,8 +770,10 @@ PY
         return 1
     fi
 
-    verify_authentication
-    verify_authentication_permissions
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        verify_authentication
+        verify_authentication_permissions
+    fi
     validate_systemd_service
 
     if ! sudo nginx -t; then
@@ -817,10 +828,45 @@ collect_network_settings() {
     validate_network_settings
 }
 
+CONTROLLER_SCHEME=https
+CONTROL_AUTH_MODE=protected
+
+collect_connection_mode() {
+    local answer
+    echo "HP 6033A Connection and Password Setup"
+    echo "---------------------------------------"
+    echo "Your Pi login is the account you created in Raspberry Pi Imager or Raspberry Pi OS."
+    echo "If sudo asks for a password, enter the Pi account password for $APP_USER."
+    echo "Both options keep the dashboard limited to the LAN subnet you enter."
+    echo "Both require you to enable remote control explicitly before changing the supply."
+    echo
+    echo "1) HTTPS (default)"
+    echo "   Encrypts browser traffic. Your browser may warn about the Pi's self-signed certificate."
+    echo "   HTTP visits redirect to HTTPS. Setup creates a separate dashboard username and password"
+    echo "   for protected controls and for changing the control password policy in dashboard Setup."
+    echo "   You can choose password-free controls and still keep HTTPS."
+    echo "   If you enable browser software updates, you will create a separate administrator"
+    echo "   password that approves installations, even with password-free controls."
+    echo
+    echo "2) HTTP only (trusted home LAN)"
+    echo "   Opens at http:// with no encryption, certificate, or HTTPS redirect."
+    echo "   Skips the controller username and both dashboard password prompts."
+    echo "   Anyone on the allowed LAN can enable remote control and operate the supply."
+    echo "   Software updates use the command line on the Pi. Keep this mode on a trusted LAN"
+    echo "   and do not forward the controller port to the internet."
+    echo
+    read -r -p "Connection mode [1/2, default 1]: " answer || return 1
+    case "$answer" in
+        ""|1) CONTROLLER_SCHEME=https; CONTROL_AUTH_MODE=protected ;;
+        2) CONTROLLER_SCHEME=http; CONTROL_AUTH_MODE=password-free ;;
+        *) echo "Enter 1 or 2." >&2; return 1 ;;
+    esac
+}
+
 collect_control_auth_mode() {
     local answer
     echo "Password-free control is for a trusted LAN without internet exposure."
-    echo "Administrator credentials are set up in both modes."
+    echo "Changing this policy in dashboard Setup requires the controller username and password."
     read -r -p "Require a control password? [Y/n]: " answer || return 1
     case "$answer" in
         ""|y|Y) CONTROL_AUTH_MODE=protected ;;
@@ -853,7 +899,7 @@ activate_controller() {
 }
 
 activate_nginx() {
-    echo "Activating HP 6033A HTTPS interface..."
+    echo "Activating HP 6033A ${CONTROLLER_SCHEME^^} interface..."
 
     local target="/etc/nginx/sites-available/hp6033a"
     local enabled="/etc/nginx/sites-enabled/hp6033a"
@@ -921,7 +967,7 @@ activate_nginx() {
         return 1
     fi
 
-    echo "Nginx HTTPS interface activated."
+    echo "Nginx ${CONTROLLER_SCHEME^^} interface activated."
     echo "Remote output control remains disabled by default."
 }
 
@@ -940,8 +986,11 @@ main() {
         return 1
     fi
 
+    collect_connection_mode || return 1
     collect_network_settings || return 1
-    collect_control_auth_mode || return 1
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        collect_control_auth_mode || return 1
+    fi
     run_preflight_checks || return 1
 
     if confirm_installation; then
@@ -989,13 +1038,19 @@ main() {
     initialize_configuration
     configure_usbgpib
     install_systemd_service
-    configure_https
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        configure_https
+    fi
     configure_nginx
-    configure_authentication || return 1
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        configure_authentication || return 1
+    fi
 
     validate_nginx_configuration
     validate_systemd_service
-    verify_authentication_permissions
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        verify_authentication_permissions
+    fi
     verify_gpib_configuration
     verify_ready_for_activation
 
@@ -1005,18 +1060,19 @@ main() {
     activate_controller || return 1
     activate_nginx || return 1
 
-    # Verify that HTTPS reaches the actual HP 6033A application.
-    if ! "$APP_DIR/venv/bin/python" - "$CONTROLLER_HOST" "${CONTROL_AUTH_MODE:-protected}" <<'PYVERIFY'
+    # Verify that the selected interface reaches the actual HP 6033A application.
+    if ! "$APP_DIR/venv/bin/python" - "$CONTROLLER_HOST" "$CONTROLLER_SCHEME" "$CONTROL_AUTH_MODE" <<'PYVERIFY'
 import json
 import ssl
 import sys
 import urllib.request
 
-host, mode = sys.argv[1:]
-url = f"https://{host}/api/status"
+host, scheme, mode = sys.argv[1:]
+base = f"{scheme}://{host}"
+url = f"{base}/api/status"
 
 try:
-    context = ssl._create_unverified_context()
+    context = ssl._create_unverified_context() if scheme == "https" else None
     with urllib.request.urlopen(url, context=context, timeout=15) as response:
         if response.status != 200:
             raise RuntimeError(f"Unexpected HTTP status: {response.status}")
@@ -1028,20 +1084,25 @@ try:
 
     expected = "Disable control password" if mode == "protected" else "Require control password"
     for route in ("/", "/classic-dual"):
-        with urllib.request.urlopen(f"https://{host}{route}", context=context, timeout=15) as response:
+        with urllib.request.urlopen(f"{base}{route}", context=context, timeout=15) as response:
+            if response.url != f"{base}{route}":
+                raise RuntimeError(f"Unexpected redirect on {route}")
             page = response.read().decode("utf-8")
-        if 'id="control-auth-setting-dialog"' not in page or expected not in page:
+        has_auth_setup = 'id="control-auth-setting-dialog"' in page
+        if scheme == "https" and (not has_auth_setup or expected not in page):
             raise RuntimeError(f"Expected {mode} authentication setup on {route}")
-    print("HTTPS status and dashboard setup verification passed.")
+        if scheme == "http" and (has_auth_setup or "if(!false)return Promise.resolve({});" not in page):
+            raise RuntimeError(f"Expected HTTP-only password-free controls on {route}")
+    print(f"{scheme.upper()} status and dashboard setup verification passed.")
 except Exception as exc:
-    print(f"ERROR: HTTPS controller verification failed: {exc}", file=sys.stderr)
+    print(f"ERROR: {scheme.upper()} controller verification failed: {exc}", file=sys.stderr)
     sys.exit(1)
 PYVERIFY
     then
         return 1
     fi
 
-    # Enable automatic startup only after successful HTTPS verification.
+    # Enable automatic startup only after successful dashboard verification.
     SERVICE_ENABLED_BY_INSTALLER=true
     if ! sudo systemctl enable hp6033a.service; then
         echo "ERROR: Could not enable automatic startup." >&2
@@ -1052,12 +1113,18 @@ PYVERIFY
     echo "========================================"
     echo " HP 6033A INSTALLATION SUCCESSFUL"
     echo "========================================"
-    echo "Controller URL: https://${CONTROLLER_HOST}/"
+    echo "Controller URL: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/"
+    echo "Control authentication mode: $CONTROL_AUTH_MODE"
+    echo "Documentation: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/docs/"
+
+    if [[ "$CONTROLLER_SCHEME" == http ]]; then
+        echo "HTTP-only mode uses command-line software updates. See the installation guide."
+        return 0
+    fi
+
     echo "Your browser may warn about the self-signed certificate."
-    echo "Control authentication mode: ${CONTROL_AUTH_MODE:-protected}"
     echo "Control preferences: Setup in Modern or Setup & Extra Controls in Classic."
     echo "Use the controller credentials to change the authentication mode."
-    echo "Documentation: https://${CONTROLLER_HOST}/docs/"
 
     local web_updates
     if [[ -t 0 ]] && read -r -p "Enable Software Updates in the dashboards? [y/N]: " web_updates &&

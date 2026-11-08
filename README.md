@@ -61,13 +61,18 @@ The installer uses `sudo` for system setup.
 
     bash install.sh
 
-Enter the controller's HTTPS hostname or IP and its permitted LAN subnet.
-The installer configures dependencies, USB-GPIB permissions, authentication,
-HTTPS, Nginx, and automatic startup. It verifies the HTTPS status API and
-Setup sections before reporting success. Follow the [installation guide](static/docs/installation.html)
-to configure the VISA resource and verify communication with the supply.
+Setup first explains the connection and password options. Choose HTTPS for
+an encrypted browser connection with optional control authentication. Choose
+HTTP only on a trusted home LAN to skip certificates, the HTTPS redirect, and
+dashboard passwords. Anyone on the allowed subnet can enable remote control
+in HTTP-only mode. Browser updates require HTTPS. Command-line updates support
+both modes.
 
-After installation, open the HTTPS URL displayed by the installer. Your browser may warn about the self-signed certificate; verify the Raspberry Pi address before proceeding.
+Enter the controller hostname or IP and its permitted LAN subnet. The installer
+validates the status API and both dashboards before enabling automatic startup.
+Open the URL displayed by the installer. Follow the
+[installation guide](static/docs/installation.html) for the setup choices and
+USB-GPIB configuration.
 
 The installer will not overwrite an existing HP 6033A installation.
 
@@ -81,7 +86,7 @@ reviewed [release](https://github.com/RLF62/hp6033a-web-controller/releases).
 For a first upgrade, use the download command in the installation guide with
 its update arguments. You can also run the updater from a reviewed release
 checkout. It downloads the selected stable tag itself. Replace the placeholders and use
-the controller's current HTTPS address.
+the controller's current address, including its HTTP or HTTPS scheme.
 
 ```bash
 bash update.sh --check
@@ -97,7 +102,7 @@ disabled. See [recovery](static/docs/recovery.html) for backup and rollback.
 
 ### Software Updates in the dashboards
 
-On a fresh installation, opt in to Software Updates when prompted and create
+On a fresh HTTPS installation, opt in to Software Updates when prompted and create
 a separate update administrator password. Open Setup in Modern or
 Setup & Extra Controls in Classic to see the installed version, latest
 published stable GitHub release, release notes, and update status.
@@ -116,9 +121,9 @@ the physical output cannot be confirmed off, or remote programming is enabled.
 ### Control authentication and dashboard settings
 
 The installer defaults to password-protected control and creates a separate
-controller login in both modes. Choose password-free control only on a trusted
-LAN without internet exposure. Both modes use HTTPS,
-the configured LAN allowlist, and the same instrument safety checks.
+controller login for HTTPS installations. Choose password-free control only on a trusted
+LAN without internet exposure. Both HTTPS control password options retain
+the configured LAN allowlist and the instrument safety checks.
 
 Open **Setup** in Modern or **Setup & Extra Controls** below the Classic
 instrument panel to find the confirmation and control password settings. Changing the mode always requires the controller

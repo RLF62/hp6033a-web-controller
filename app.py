@@ -41,14 +41,15 @@ def save():
 
 
 def proxy_control_auth_mode():
-    # Only trust the header overwritten by the HTTPS Nginx Unix-socket proxy.
-    if request.environ.get('REMOTE_ADDR') != '' or not request.is_secure:
+    # Only trust the header overwritten by the Nginx Unix-socket proxy.
+    if request.environ.get('REMOTE_ADDR') != '':
         return None
     mode = request.headers.get('X-HP6033A-Password-Free')
-    if mode not in ('1', '2'):
+    allowed_modes = ('1', '2') if request.is_secure else ('3',)
+    if mode not in allowed_modes:
         return None
     # Older sites forward unknown client headers. Require an installed site
-    # that explicitly overwrites the header in both HTTPS proxy locations.
+    # that explicitly overwrites the header in both proxy locations.
     try:
         directive = f'proxy_set_header X-HP6033A-Password-Free {mode};'
         lines = NGINX_SITE.read_text().splitlines()
@@ -68,7 +69,7 @@ def control_password_required():
             )
         except (OSError, UnicodeError):
             return True
-    return mode != '1'
+    return mode not in ('1', '3')
 
 
 @app.get('/')
@@ -76,6 +77,7 @@ def home():
     return render_template(
         'index.html', password_required=control_password_required(),
         auth_mode_editable=proxy_control_auth_mode() == "2",
+        http_only=proxy_control_auth_mode() == "3",
         limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT)
     )
 
@@ -87,6 +89,7 @@ def classic_dual():
         'classic_dual_preview.html', classic_labels=labels,
         password_required=control_password_required(),
         auth_mode_editable=proxy_control_auth_mode() == "2",
+        http_only=proxy_control_auth_mode() == "3",
         limits=dict(voltage=MAX_REMOTE_VOLTAGE, current=MAX_REMOTE_CURRENT)
     )
 

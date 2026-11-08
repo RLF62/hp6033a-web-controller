@@ -475,26 +475,45 @@ class MainSequenceSafetyTests(unittest.TestCase):
             self.main.index("activate_nginx || return 1"),
         )
 
-    def test_https_verified_before_enabling_startup(self):
-        self.assertIn('url = f"https://{host}/api/status"', self.main)
+    def test_status_verified_before_enabling_startup(self):
+        self.assertIn('url = f"{base}/api/status"', self.main)
         self.assertIn(
             'required = {"gpib_connected", "gpib_status", "mode"}',
             self.main,
         )
         self.assertLess(
-            self.main.index('url = f"https://{host}/api/status"'),
+            self.main.index('url = f"{base}/api/status"'),
             self.main.index("systemctl enable hp6033a.service"),
         )
 
-    def test_success_message_includes_https_url(self):
+    def test_success_message_includes_selected_url(self):
         self.assertIn(
-            'Controller URL: https://${CONTROLLER_HOST}/',
+            'Controller URL: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/',
             self.main,
         )
 
     def test_activation_failure_is_reported(self):
         self.assertIn("activate_controller || return 1", self.main)
         self.assertIn("activate_nginx || return 1", self.main)
+
+
+class ConnectionModeTests(unittest.TestCase):
+    def test_setup_explains_both_choices_and_defaults_to_https(self):
+        output = self.select_mode("\n")
+        for text in ("Pi account password", "HTTPS (default)", "controller username",
+                     "separate administrator", "HTTP only"):
+            self.assertIn(text, output)
+        self.assertTrue(output.rstrip().endswith("https protected"))
+
+    def test_explicit_http_choice_sets_password_free_control(self):
+        self.assertTrue(self.select_mode("2\n").rstrip().endswith("http password-free"))
+
+    def select_mode(self, selection):
+        return subprocess.run(
+            ["bash", "-c", 'source "$1"; collect_connection_mode; '
+             'echo "$CONTROLLER_SCHEME $CONTROL_AUTH_MODE"', "test", str(INSTALLER)],
+            input=selection, capture_output=True, text=True, check=True,
+        ).stdout
 
 
 class NginxOriginSecurityTests(unittest.TestCase):
@@ -509,6 +528,27 @@ class NginxOriginSecurityTests(unittest.TestCase):
         cls.nginx = template.read_text(encoding="utf-8")
 
     def test_installer_keeps_rendered_dashboard_authentication(self):
+        config = self.render_site("https")
+        self.assertEqual(config.count("X-HP6033A-Password-Free 2;"), 2)
+        self.assertIn("auth_basic off;", config)
+        self.assertIn("192.168.1.108", config)
+        self.assertIn("192.168.1.0/24", config)
+        http = config.split("listen 443 ssl;", 1)[0]
+        self.assertIn('try_files "" @hp6033a_https_redirect;', http)
+        self.assertIn("return 308 https://192.168.1.108$request_uri;", http)
+
+    def test_installer_renders_lan_only_http_without_redirect_or_tls(self):
+        config = self.render_site("http")
+        self.assertEqual(config.count("X-HP6033A-Password-Free 3;"), 2)
+        self.assertIn("listen 80;", config)
+        self.assertIn("allow 192.168.1.0/24;", config)
+        self.assertIn("deny all;", config)
+        self.assertIn('if ($http_origin != "http://$host")', config)
+        self.assertNotIn("ssl_certificate", config)
+        self.assertNotIn("return 308", config)
+        self.assertNotIn("auth_basic_user_file", config)
+
+    def render_site(self, scheme):
         source = INSTALLER.read_text(encoding="utf-8")
         function = source.split("\nconfigure_nginx() {", 1)[1].split(
             "\nverify_authentication() {", 1
@@ -522,23 +562,17 @@ class NginxOriginSecurityTests(unittest.TestCase):
             app = Path(tmp)
             deploy = app / "deploy"
             deploy.mkdir()
-            for name in ("nginx.conf.example", "render-control-auth.py"):
+            for name in ("nginx.conf.example", "nginx-http.conf.example", "render-control-auth.py"):
                 shutil.copyfile(INSTALLER.parent / "deploy" / name, deploy / name)
 
             subprocess.run(
                 ["bash", "-e", "-o", "pipefail", "-c",
                  function + '\nAPP_DIR="$1" CONTROLLER_HOST=192.168.1.108 '
-                 'LAN_SUBNET=192.168.1.0/24 configure_nginx', "test", str(app)],
+                 'LAN_SUBNET=192.168.1.0/24 CONTROLLER_SCHEME="$2" configure_nginx',
+                 "test", str(app), scheme],
                 check=True, capture_output=True, text=True,
             )
-            config = (app / "hp6033a.nginx.generated").read_text(encoding="utf-8")
-            self.assertEqual(config.count("X-HP6033A-Password-Free 2;"), 2)
-            self.assertIn("auth_basic off;", config)
-            self.assertIn("192.168.1.108", config)
-            self.assertIn("192.168.1.0/24", config)
-            http = config.split("listen 443 ssl;", 1)[0]
-            self.assertIn("try_files \"\" @hp6033a_https_redirect;", http)
-            self.assertIn("return 308 https://192.168.1.108$request_uri;", http)
+            return (app / "hp6033a.nginx.generated").read_text(encoding="utf-8")
 
     def test_control_origin_uses_request_host(self):
         self.assertIn(

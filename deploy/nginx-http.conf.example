@@ -1,0 +1,31 @@
+# HP 6033A Web Controller — HTTP only, trusted LAN
+server {
+    listen 80;
+    server_name CONTROLLER_HOST;
+
+    allow 127.0.0.1;
+    allow ::1;
+    allow LAN_SUBNET;
+    deny all;
+
+    location ^~ /api/control/ {
+        if ($http_origin != "http://$host") {
+            return 403;
+        }
+
+        auth_basic off;
+        proxy_pass http://unix:/run/hp6033a/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-HP6033A-Password-Free 3;
+    }
+
+    location / {
+        proxy_pass http://unix:/run/hp6033a/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-HP6033A-Password-Free 3;
+    }
+}

@@ -8,6 +8,10 @@ fi
 
 account=$1
 url=$2
+if [[ "${url,,}" != https://* ]]; then
+    echo "Browser software updates require the controller HTTPS URL." >&2
+    exit 2
+fi
 source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 program=/usr/local/lib/hp6033a-update
 state=/var/lib/hp6033a-update

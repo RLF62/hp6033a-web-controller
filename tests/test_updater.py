@@ -47,7 +47,7 @@ class FakeController:
     def active(self):
         return self.running
 
-    def check_https(self, connected, pages):
+    def check_health(self, connected, pages):
         self.calls.append(("check HTTPS", connected, pages))
         if self.fail_health and pages:
             raise updater.UpdateError("simulated HTTPS failure")
@@ -253,3 +253,30 @@ class ReleaseTests(unittest.TestCase):
             mode, files = updater.nginx_details(site)
             self.assertEqual(mode, "0")
             self.assertEqual(files["auth_basic_user_file"], [Path("/etc/nginx/hp6033a.htpasswd")])
+
+
+class HttpOnlyUpdaterTests(unittest.TestCase):
+    def test_detects_http_only_site_without_security_files(self):
+        site = Path(__file__).resolve().parents[1] / "deploy/nginx-http.conf.example"
+        mode, security = updater.nginx_details(site)
+        self.assertEqual(mode, "3")
+        self.assertFalse(any(security.values()))
+
+    def test_http_health_check_is_pinned_to_loopback_without_tls_options(self):
+        url = updater.read_url("http://controller.local")
+        controller = updater.Controller(url, Path("/unused.crt"), {}, "3", {})
+        with patch.object(updater, "output") as curl:
+            controller.get("/api/status")
+        args = curl.call_args.args
+        self.assertIn("=http", args)
+        self.assertIn("controller.local:80:127.0.0.1", args)
+        self.assertNotIn("--cacert", args)
+        self.assertEqual(args[-1], "http://controller.local/api/status")
+
+    def test_https_only_url_validation_rejects_http(self):
+        with self.assertRaisesRegex(updater.argparse.ArgumentTypeError, "HTTPS URL"):
+            updater.read_url("http://controller.local", schemes=("https",))
+
+    def test_http_url_cannot_be_used_for_an_https_site(self):
+        with self.assertRaisesRegex(updater.UpdateError, "HTTPS URL"):
+            updater.Controller("http://controller.local", Path("/unused.crt"), {}, "2", {})

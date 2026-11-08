@@ -388,8 +388,8 @@ class WorkerController(update.Controller):
         if read_message(self.stream) != {"ok": True}:
             raise update.UpdateError(f"The privileged helper rejected {action}")
 
-    def check_https(self, previously_connected, pages):
-        super().check_https(previously_connected, pages)
+    def check_health(self, previously_connected, pages):
+        super().check_health(previously_connected, pages)
         if pages:
             try:
                 status = json.loads(self.get("/api/software-updates"))
@@ -493,11 +493,12 @@ def serve():
 def configure(user, url):
     if os.geteuid() != 0 or pwd.getpwnam(user).pw_uid == 0:
         raise update.UpdateError("Provision the helper as root for an unprivileged controller account")
-    url = update.read_url(url)
+    url = update.read_url(url, schemes=("https",))
     if (STATE / "config.json").exists():
         raise update.UpdateError("An updater configuration already exists")
-    print("Software update administrator password requirements: 12 to 256 characters.")
-    print("This password is separate from the controller password. Enter it twice.")
+    print("Create a separate administrator password to approve Install Update in the dashboard.")
+    print("Check for Updates is available without this password.")
+    print("Software update administrator password requirements: 12 to 256 characters. Enter it twice.")
     password = getpass.getpass("New software update administrator password: ")
     if not 12 <= len(password) <= 256:
         raise update.UpdateError("Administrator password must contain 12 to 256 characters")

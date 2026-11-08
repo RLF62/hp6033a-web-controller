@@ -167,6 +167,24 @@ class DashboardTests(SupervisorFixture):
         self.assertEqual(response.json["latest"]["tag"], TAG)
         self.assertEqual(response.headers["Cache-Control"], "no-store")
 
+    def test_http_only_requires_explicit_site_and_trusted_proxy(self):
+        site = self.root / "nginx-site"
+        directive = "proxy_set_header X-HP6033A-Password-Free 3;\n"
+        header = {"X-HP6033A-Password-Free": "3"}
+        proxy = {"REMOTE_ADDR": ""}
+        route = "/api/control/unknown"
+        with patch.object(self.controller, "NGINX_SITE", site):
+            site.write_text(directive)
+            self.assertEqual(self.client.post(route, headers=header, environ_overrides=proxy).status_code, 401)
+            site.write_text(directive * 2)
+            self.assertEqual(self.client.post(route, headers=header).status_code, 401)
+            self.assertEqual(self.client.post(route, headers=header, environ_overrides=proxy,
+                                              base_url="https://localhost").status_code, 401)
+            self.assertEqual(self.client.post(route, headers=header, environ_overrides=proxy).status_code, 404)
+            page = self.client.get("/", headers=header, environ_overrides=proxy).get_data(as_text=True)
+            self.assertIn("command-line updates on the Pi", page)
+            self.assertNotIn('id="update-install"', page)
+
     def test_helper_rejects_other_uids(self):
         self.assertEqual(self.call(expected_peer=os.getuid() + 1).status_code, 503)
 
@@ -266,7 +284,7 @@ class TransactionTests(SupervisorFixture):
                     )
                     with patch.object(worker, "status", return_value=True), patch.object(
                             worker, "active", side_effect=lambda: active), patch.object(
-                            worker, "check_https", side_effect=verify):
+                            worker, "check_health", side_effect=verify):
                         def operation():
                             web_update.update.apply_update(
                                 controller_app, source, {"release": TAG, "commit": COMMIT},
