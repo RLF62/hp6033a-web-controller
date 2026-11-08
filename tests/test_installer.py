@@ -1,6 +1,8 @@
+import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -440,6 +442,7 @@ class MainSequenceSafetyTests(unittest.TestCase):
             "install_dependencies",
             "initialize_configuration",
             "configure_usbgpib",
+            "offer_usbgpib_setup",
             "install_systemd_service",
             "configure_https",
             "configure_nginx",
@@ -497,6 +500,61 @@ class MainSequenceSafetyTests(unittest.TestCase):
         self.assertIn("activate_nginx || return 1", self.main)
 
 
+class UsbGpibSetupTests(unittest.TestCase):
+    adapter = "USB0::1003::8293::TEST::0::INSTR"
+
+    def test_saves_only_the_supported_adapter(self):
+        result, config = self.detect([self.adapter, "USB0::1::2::OTHER::INSTR"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(config, {"gpib_resource": self.adapter, "instrument_name": "HP 6033A"})
+
+    def test_missing_or_ambiguous_adapters_leave_configuration_blank(self):
+        for resources in ([], [self.adapter, self.adapter.replace("TEST", "SECOND")]):
+            with self.subTest(resources=resources):
+                result, config = self.detect(resources)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(config["gpib_resource"], "")
+
+    def test_preserves_an_existing_resource(self):
+        result, config = self.detect([self.adapter], configured="USB0::1::2::EXISTING::INSTR")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(config["gpib_resource"], "USB0::1::2::EXISTING::INSTR")
+
+    def test_noninteractive_install_skips_detection(self):
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; sudo() { return 99; }; offer_usbgpib_setup; '
+             'echo "$USB_GPIB_CONFIGURED"', "test", str(INSTALLER)],
+            input="", capture_output=True, text=True, check=True,
+        )
+        self.assertEqual(result.stdout.strip(), "false")
+
+    def detect(self, resources, configured=""):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory)
+            interpreter = app / "venv/bin/python"
+            interpreter.parent.mkdir(parents=True)
+            interpreter.symlink_to(sys.executable)
+            config = app / "config.json"
+            config.write_text(json.dumps({"gpib_resource": configured, "instrument_name": "HP 6033A"}))
+            (app / "pyvisa.py").write_text(
+                "class ResourceManager:\n"
+                "    def __init__(self, backend):\n"
+                "        assert backend == '@py'\n"
+                "    def list_resources(self, query):\n"
+                "        assert query == 'USB?*::INSTR'\n"
+                f"        return {tuple(resources)!r}\n"
+                "    def close(self):\n"
+                "        pass\n"
+            )
+            result = subprocess.run(
+                ["bash", "-c", 'source "$1"; APP_DIR="$2"; export PYTHONPATH="$2"; '
+                 'sudo() { shift 3; "$@"; }; detect_and_save_usbgpib',
+                 "test", str(INSTALLER), directory],
+                capture_output=True, text=True,
+            )
+            return result, json.loads(config.read_text())
+
+
 class InstallationSummaryTests(unittest.TestCase):
     def test_https_summary(self):
         output = self.render_summary("https", "hp6033a-test.local")
@@ -510,19 +568,26 @@ class InstallationSummaryTests(unittest.TestCase):
         self.assertIn("Software updates: Command line", output)
         self.assertNotIn("self-signed", output)
 
-    def render_summary(self, scheme, host):
+    def test_configured_summary_omits_manual_steps(self):
+        output = self.render_summary("http", "192.168.1.108", configured=True)
+        self.assertIn("USB-GPIB configured", output)
+        self.assertNotIn("sudo systemctl restart", output)
+
+    def render_summary(self, scheme, host, configured=False):
         output = subprocess.run(
             ["bash", "-c", 'source "$1"; CONTROLLER_SCHEME="$2"; '
-             'CONTROLLER_HOST="$3"; print_installation_summary',
-             "test", str(INSTALLER), scheme, host],
+             'CONTROLLER_HOST="$3"; USB_GPIB_CONFIGURED="$4"; print_installation_summary',
+             "test", str(INSTALLER), scheme, host, str(configured).lower()],
             capture_output=True, text=True, check=True,
         ).stdout
         for line in ("INSTALLATION COMPLETED SUCCESSFULLY",
                      "Service: Running", "Automatic startup: Enabled",
-                     "After rebooting the Pi, open the same dashboard URL",
-                     "Unplug the USB-GPIB adapter", "gpib_resource",
-                     "sudo systemctl restart hp6033a.service"):
+                     "After rebooting the Pi, open the same dashboard URL"):
             self.assertIn(line, output)
+        if not configured:
+            for line in ("Unplug the USB-GPIB adapter", "gpib_resource",
+                         "sudo systemctl restart hp6033a.service"):
+                self.assertIn(line, output)
         return output
 
 

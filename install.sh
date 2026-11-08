@@ -105,11 +105,6 @@ initialize_configuration() {
         "$config_file"
 
     echo "Configuration created successfully."
-    echo
-    echo "IMPORTANT:"
-    echo "Configure your USB-GPIB resource address before"
-    echo "attempting communication with the HP 6033A."
-    echo
     echo "Remote output control remains disabled by default."
 }
 
@@ -154,7 +149,66 @@ configure_usbgpib() {
     sudo udevadm control --reload-rules
 
     echo "USB-GPIB permissions configured."
-    echo "Reconnect the adapter after installation if necessary."
+}
+
+detect_and_save_usbgpib() {
+    # Start a fresh process as the service user so it gets the current groups.
+    sudo -u "$APP_USER" -- "$APP_DIR/venv/bin/python" - "$APP_DIR/config.json" <<'PYUSB'
+from contextlib import closing
+import json
+from pathlib import Path
+import sys
+from tempfile import NamedTemporaryFile
+import warnings
+
+import pyvisa
+
+path = Path(sys.argv[1])
+config = json.loads(path.read_text())
+if config.get("gpib_resource"):
+    sys.exit("A USB-GPIB resource is already configured.")
+
+# PyVISA probes network backends even when its result filter selects USB.
+warnings.filterwarnings("ignore", category=UserWarning, module=r"pyvisa_py\.tcpip")
+with closing(pyvisa.ResourceManager("@py")) as manager:
+    resources = [
+        name for name in manager.list_resources("USB?*::INSTR")
+        if name.split("::")[1:3] == ["1003", "8293"]
+    ]
+
+if len(resources) != 1:
+    sys.exit(f"Expected one USB-GPIB adapter, found {len(resources)}.")
+
+config["gpib_resource"] = resources[0]
+with NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as temporary:
+    json.dump(config, temporary, indent=2)
+    temporary.write("\n")
+Path(temporary.name).replace(path)
+print(f"Configured USB-GPIB resource: {resources[0]}")
+PYUSB
+}
+
+USB_GPIB_CONFIGURED=false
+
+offer_usbgpib_setup() {
+    local answer
+    if [[ ! -t 0 ]]; then
+        return 0
+    fi
+
+    echo
+    echo "USB-GPIB adapter setup"
+    echo "Unplug the adapter from the Pi and plug it back in. If it is unplugged, connect it now."
+    if ! read -r -p "Press Enter after reconnecting, or type s to skip: " answer ||
+       [[ -n "$answer" ]]; then
+        return 0
+    fi
+
+    if sudo udevadm settle --timeout=5 && detect_and_save_usbgpib; then
+        USB_GPIB_CONFIGURED=true
+    else
+        echo "USB-GPIB setup could not complete. See the manual steps after installation." >&2
+    fi
 }
 
 install_systemd_service() {
@@ -1037,6 +1091,7 @@ main() {
 
     initialize_configuration
     configure_usbgpib
+    offer_usbgpib_setup
     install_systemd_service
     if [[ "$CONTROLLER_SCHEME" == https ]]; then
         configure_https
@@ -1162,9 +1217,15 @@ Use HTTP-only mode on your trusted local network.
 EOF
     fi
 
-    cat <<'EOF'
-==================================================
+    echo "=================================================="
+    echo
+    if [[ "$USB_GPIB_CONFIGURED" == true ]]; then
+        echo "USB-GPIB configured. Open the dashboard and check that GPIB is connected."
+        printf 'Documentation: %sdocs/\n' "$dashboard_url"
+        return 0
+    fi
 
+    cat <<'EOF'
 Dashboard ready. Complete USB-GPIB setup before enabling remote control.
 
 1. Unplug the USB-GPIB adapter from the Pi and plug it back in.

@@ -54,9 +54,11 @@ esac
 </ul>
 <p>If <code>sudo</code> prompts for a password in either mode, use the Raspberry Pi OS login password for the account running the installer. If you opt into browser updates in HTTPS mode, create a separate administrator password to approve installations.</p>
 <p>The installer configures the service, USB permissions, and Nginx. After it verifies the status endpoint and both dashboards and confirms the service is running and enabled, it prints <strong>INSTALLATION COMPLETED SUCCESSFULLY</strong>. Copy the dashboard URL from the summary. It uses the IP address or hostname you entered and the protocol you selected. Use the same URL after rebooting the Pi.</p>
-<p>The HTTPS summary explains the self-signed certificate warning. The HTTP-only summary confirms password-free dashboard access and command-line updates. Both summaries include the USB-GPIB commissioning steps below. Complete those steps before enabling remote control.</p>
+<p>The HTTPS summary explains the self-signed certificate warning. The HTTP-only summary confirms password-free dashboard access and command-line updates. If the adapter is configured during setup, the summary asks you to check its connection on the dashboard. Otherwise, it prints the manual commissioning steps.</p>
 </section>
 <section id="config"><h2>Connect the supply and configure VISA</h2>
+<p>During interactive setup, unplug and reconnect the USB-GPIB adapter when prompted, then press Enter. If setup detects exactly one supported UsbGpib V2 adapter, it saves its VISA address before starting the service. Open the dashboard and verify that GPIB is connected and the readings match the front panel before enabling remote control.</p>
+<p>Type <code>s</code> to skip automatic configuration. If you skip it or detection fails, follow these manual steps:</p>
 <ol>
 <li>Reconnect the UsbGpib V2 adapter after the udev rules are installed. Open a fresh SSH session after any change to the user's <code>plugdev</code> membership.</li>
 <li>With the output off, list USB VISA resources from the installed environment.</li>
