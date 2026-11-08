@@ -17,7 +17,16 @@ server {
         allow LAN_SUBNET;
         deny all;
 
-        return 403;
+        limit_except GET {
+            deny all;
+        }
+
+        # Run the access checks before issuing the redirect.
+        try_files "" @hp6033a_https_redirect;
+    }
+
+    location @hp6033a_https_redirect {
+        return 308 https://CONTROLLER_HOST$request_uri;
     }
 }
 

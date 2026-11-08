@@ -536,6 +536,9 @@ class NginxOriginSecurityTests(unittest.TestCase):
             self.assertIn("auth_basic off;", config)
             self.assertIn("192.168.1.108", config)
             self.assertIn("192.168.1.0/24", config)
+            http = config.split("listen 443 ssl;", 1)[0]
+            self.assertIn("try_files \"\" @hp6033a_https_redirect;", http)
+            self.assertIn("return 308 https://192.168.1.108$request_uri;", http)
 
     def test_control_origin_uses_request_host(self):
         self.assertIn(

@@ -46,7 +46,7 @@ case ${3:-install} in
   *) echo &quot;Choose install or update&quot; &gt;&amp;2; exit 2 ;;
 esac
 &#x27; _ &#x27;&lt;stable-tag&gt;&#x27; &#x27;&lt;full-commit-from-release-notes&gt;&#x27;</code></pre>
-<p>Enter the address and allowed subnet. Accept the default password protection or choose password-free control for a trusted LAN without internet exposure. Create the separate controller credentials in either mode. The controller password must be 1 to 72 UTF-8 bytes (up to 72 ASCII characters). Enter the same password at both prompts. The credentials are always required to change the password policy from Setup.</p>
+<p>Enter the address and allowed subnet. The configured LAN can open the controller over HTTP and will be redirected to its HTTPS address. Accept the default password protection or choose password-free control for a trusted LAN without internet exposure. Create the separate controller credentials in either mode. The controller password must be 1 to 72 UTF-8 bytes (up to 72 ASCII characters). Enter the same password at both prompts. The credentials are always required to change the password policy from Setup.</p>
 <p>The installer configures the service, USB permissions, and Nginx. It verifies the HTTPS status endpoint and Setup on both dashboards before enabling startup. Use the HTTPS URL it reports. The supplied certificate is self-signed. Verify the address and trust the correct certificate on your clients before submitting credentials.</p>
 </section>
 <section id="config"><h2>Connect the supply and configure VISA</h2>
