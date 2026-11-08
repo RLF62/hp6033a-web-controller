@@ -1109,30 +1109,79 @@ PYVERIFY
         return 1
     fi
 
-    echo
-    echo "========================================"
-    echo " HP 6033A INSTALLATION SUCCESSFUL"
-    echo "========================================"
-    echo "Controller URL: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/"
-    echo "Control authentication mode: $CONTROL_AUTH_MODE"
-    echo "Documentation: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/docs/"
-
-    if [[ "$CONTROLLER_SCHEME" == http ]]; then
-        echo "HTTP-only mode uses command-line software updates. See the installation guide."
-        return 0
-    fi
-
-    echo "Your browser may warn about the self-signed certificate."
-    echo "Control preferences: Setup in Modern or Setup & Extra Controls in Classic."
-    echo "Use the controller credentials to change the authentication mode."
-
     local web_updates
-    if [[ -t 0 ]] && read -r -p "Enable Software Updates in the dashboards? [y/N]: " web_updates &&
+    if [[ "$CONTROLLER_SCHEME" == https && -t 0 ]] &&
+       read -r -p "Enable Software Updates in the dashboards? [y/N]: " web_updates &&
        [[ "$web_updates" == [yY] ]]; then
         if ! sudo bash "$SOURCE_DIR/deploy/install-web-updater.sh" "$APP_USER" "https://${CONTROLLER_HOST}"; then
             echo "The controller is working. See the installation guide to recover Software Updates setup." >&2
         fi
     fi
+
+    if ! systemctl is-active --quiet hp6033a.service ||
+       ! systemctl is-enabled --quiet hp6033a.service; then
+        echo "ERROR: The HP 6033A service must be running and enabled." >&2
+        return 1
+    fi
+
+    print_installation_summary
+}
+
+
+print_installation_summary() {
+    local dashboard_url="${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/"
+    cat <<EOF
+
+==================================================
+ HP 6033A WEB CONTROLLER
+ INSTALLATION COMPLETED SUCCESSFULLY
+==================================================
+
+Open your dashboard:
+
+    $dashboard_url
+
+Service: Running
+Automatic startup: Enabled
+
+After rebooting the Pi, open the same dashboard URL in your browser.
+EOF
+    if [[ "$CONTROLLER_SCHEME" == https ]]; then
+        cat <<'EOF'
+
+Note: Your browser may warn about the
+self-signed HTTPS certificate.
+EOF
+    else
+        cat <<'EOF'
+
+Dashboard password: Not required
+Software updates: Command line
+
+Use HTTP-only mode on your trusted local network.
+EOF
+    fi
+
+    cat <<'EOF'
+==================================================
+
+Dashboard ready. Complete USB-GPIB setup before enabling remote control.
+
+1. Unplug the USB-GPIB adapter from the Pi and plug it back in.
+   This applies the installed USB permissions. If setup added you to
+   plugdev, open a fresh login session before continuing.
+2. List the USB VISA resources:
+EOF
+    printf '       cd %q\n' "$APP_DIR"
+    cat <<'EOF'
+       venv/bin/python -c 'import pyvisa; print(pyvisa.ResourceManager("@py").list_resources("USB?*::INSTR"))'
+3. Run nano config.json and set gpib_resource to the exact USB VISA
+   resource string. Save the file and restart the controller:
+       sudo systemctl restart hp6033a.service
+4. Refresh the dashboard and check that GPIB is connected.
+
+EOF
+    printf 'Documentation: %sdocs/\n' "$dashboard_url"
 }
 
 

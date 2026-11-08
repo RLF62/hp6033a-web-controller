@@ -53,7 +53,8 @@ esac
 <li><strong>HTTP only.</strong> Opens at <code>http://</code> with no encryption, HTTPS redirect, certificate, or controller credentials. Anyone on the allowed LAN can enable remote control and operate the supply. Use this mode on a trusted home LAN without internet port forwarding. Software updates run from the command line on the Pi.</li>
 </ul>
 <p>If <code>sudo</code> prompts for a password in either mode, use the Raspberry Pi OS login password for the account running the installer. If you opt into browser updates in HTTPS mode, create a separate administrator password to approve installations.</p>
-<p>The installer configures the service, USB permissions, and Nginx. It verifies the status endpoint and both dashboards over the selected protocol before enabling startup. Open the URL it reports.</p>
+<p>The installer configures the service, USB permissions, and Nginx. After it verifies the status endpoint and both dashboards and confirms the service is running and enabled, it prints <strong>INSTALLATION COMPLETED SUCCESSFULLY</strong>. Copy the dashboard URL from the summary. It uses the IP address or hostname you entered and the protocol you selected. Use the same URL after rebooting the Pi.</p>
+<p>The HTTPS summary explains the self-signed certificate warning. The HTTP-only summary confirms password-free dashboard access and command-line updates. Both summaries include the USB-GPIB commissioning steps below. Complete those steps before enabling remote control.</p>
 </section>
 <section id="config"><h2>Connect the supply and configure VISA</h2>
 <ol>

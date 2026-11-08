@@ -486,15 +486,44 @@ class MainSequenceSafetyTests(unittest.TestCase):
             self.main.index("systemctl enable hp6033a.service"),
         )
 
-    def test_success_message_includes_selected_url(self):
-        self.assertIn(
-            'Controller URL: ${CONTROLLER_SCHEME}://${CONTROLLER_HOST}/',
-            self.main,
-        )
+    def test_summary_runs_after_service_enable_and_optional_updater(self):
+        for step in ("systemctl enable hp6033a.service", "deploy/install-web-updater.sh",
+                     "systemctl is-active --quiet hp6033a.service",
+                     "systemctl is-enabled --quiet hp6033a.service"):
+            self.assertLess(self.main.index(step), self.main.index("print_installation_summary"))
 
     def test_activation_failure_is_reported(self):
         self.assertIn("activate_controller || return 1", self.main)
         self.assertIn("activate_nginx || return 1", self.main)
+
+
+class InstallationSummaryTests(unittest.TestCase):
+    def test_https_summary(self):
+        output = self.render_summary("https", "hp6033a-test.local")
+        self.assertIn("    https://hp6033a-test.local/", output)
+        self.assertIn("self-signed HTTPS certificate", output)
+
+    def test_http_summary(self):
+        output = self.render_summary("http", "192.168.1.108")
+        self.assertIn("    http://192.168.1.108/", output)
+        self.assertIn("Dashboard password: Not required", output)
+        self.assertIn("Software updates: Command line", output)
+        self.assertNotIn("self-signed", output)
+
+    def render_summary(self, scheme, host):
+        output = subprocess.run(
+            ["bash", "-c", 'source "$1"; CONTROLLER_SCHEME="$2"; '
+             'CONTROLLER_HOST="$3"; print_installation_summary',
+             "test", str(INSTALLER), scheme, host],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        for line in ("INSTALLATION COMPLETED SUCCESSFULLY",
+                     "Service: Running", "Automatic startup: Enabled",
+                     "After rebooting the Pi, open the same dashboard URL",
+                     "Unplug the USB-GPIB adapter", "gpib_resource",
+                     "sudo systemctl restart hp6033a.service"):
+            self.assertIn(line, output)
+        return output
 
 
 class ConnectionModeTests(unittest.TestCase):
