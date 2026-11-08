@@ -1,4 +1,7 @@
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -504,6 +507,35 @@ class NginxOriginSecurityTests(unittest.TestCase):
             / "nginx.conf.example"
         )
         cls.nginx = template.read_text(encoding="utf-8")
+
+    def test_installer_keeps_rendered_dashboard_authentication(self):
+        source = INSTALLER.read_text(encoding="utf-8")
+        function = source.split("\nconfigure_nginx() {", 1)[1].split(
+            "\nverify_authentication() {", 1
+        )[0]
+        function = "configure_nginx() {" + function
+        function = function.replace(
+            "/etc/nginx/sites-available/hp6033a", "$APP_DIR/test-available"
+        ).replace("/etc/nginx/sites-enabled/hp6033a", "$APP_DIR/test-enabled")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            app = Path(tmp)
+            deploy = app / "deploy"
+            deploy.mkdir()
+            for name in ("nginx.conf.example", "render-control-auth.py"):
+                shutil.copyfile(INSTALLER.parent / "deploy" / name, deploy / name)
+
+            subprocess.run(
+                ["bash", "-e", "-o", "pipefail", "-c",
+                 function + '\nAPP_DIR="$1" CONTROLLER_HOST=192.168.1.108 '
+                 'LAN_SUBNET=192.168.1.0/24 configure_nginx', "test", str(app)],
+                check=True, capture_output=True, text=True,
+            )
+            config = (app / "hp6033a.nginx.generated").read_text(encoding="utf-8")
+            self.assertEqual(config.count("X-HP6033A-Password-Free 2;"), 2)
+            self.assertIn("auth_basic off;", config)
+            self.assertIn("192.168.1.108", config)
+            self.assertIn("192.168.1.0/24", config)
 
     def test_control_origin_uses_request_host(self):
         self.assertIn(

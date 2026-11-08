@@ -266,8 +266,7 @@ configure_nginx() {
 
     python3 "$renderer" dashboard "$template" | sed \
         -e "s|CONTROLLER_HOST|$CONTROLLER_HOST|g" \
-        -e "s|LAN_SUBNET|$LAN_SUBNET|g" \
-        "$template" > "$generated"
+        -e "s|LAN_SUBNET|$LAN_SUBNET|g" > "$generated"
 
     if grep -Eq 'CONTROLLER_HOST|LAN_SUBNET' "$generated"; then
         echo "ERROR: Unresolved Nginx placeholders." >&2
