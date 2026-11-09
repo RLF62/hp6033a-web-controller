@@ -15,6 +15,8 @@
     <a id="update-notes" target="_blank" rel="noopener noreferrer" hidden>Release Notes</a>
     <button type="button" id="update-install" style="min-height:44px" disabled>Install Update</button>
   </div>
+  <p>Before installing an update, connect the USB-GPIB adapter to the power supply,
+    confirm the supply output is <strong>OFF</strong>, and disable remote programming.</p>
   <p id="update-status" role="status" aria-live="polite">Connecting to the update helper…</p>
   <p id="update-job" role="status" aria-live="polite"></p>
   <a href="/static/docs/installation.html#web-updates">Setup guide</a> ·
@@ -25,7 +27,7 @@
   <form id="update-form" method="dialog">
     <h3 id="update-confirm-title">Install software update?</h3>
     <p id="update-target" style="overflow-wrap:anywhere"></p>
-    <p>Leave the supply connected with its output off and remote programming disabled. The controller dashboard may briefly disconnect.</p>
+    <p>Keep USB-GPIB connected, the supply output <strong>OFF</strong>, and remote programming disabled during the update. The dashboard may briefly disconnect.</p>
     <label for="update-password">Update administrator password</label>
     <input type="password" id="update-password" required maxlength="256" autocomplete="current-password" style="display:block;width:100%;box-sizing:border-box">
     <p id="update-confirm-status" role="status"></p>

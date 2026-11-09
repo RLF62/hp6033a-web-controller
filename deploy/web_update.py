@@ -35,6 +35,7 @@ CHECK_INTERVAL = 6 * 60 * 60
 APPROVAL_TTL = 120
 MAX_MESSAGE = 4096
 ROUNDS = 600_000
+CONTROLLER_NOT_READY_EXIT = 4
 RUNNING = {"queued", "downloading", "staging", "backup", "activation", "verification"}
 PHASES = {
     "queued": "Update approved. Checking the release again.",
@@ -46,6 +47,10 @@ PHASES = {
     "complete": "Update completed and verified.",
     "rolled_back": "Verification failed. The previous application was restored and checked.",
     "failed": "The update stopped before activation. See the recovery guide and helper journal.",
+    "controller_not_ready": (
+        "The update stopped before activation. Connect the USB-GPIB adapter to the supply, "
+        "verify that the supply output is OFF, and disable remote programming before retrying."
+    ),
     "recovery": "Automatic recovery could not be verified. See the recovery guide and job log.",
 }
 
@@ -372,6 +377,8 @@ class JobBroker:
             return "complete"
         if code == 2 and self.stops:
             return "rolled_back"
+        if code == CONTROLLER_NOT_READY_EXIT and not self.stops:
+            return "controller_not_ready"
         return "recovery" if code == 3 or self.stops else "failed"
 
 
@@ -447,7 +454,7 @@ def worker(fd, url, tag, commit, job):
             controller = WorkerController(connection, stream, job, tag, url, update.CERTIFICATE,
                                           properties, mode, security)
             if not controller.status():
-                raise update.UpdateError("Connect the GPIB adapter and verify the output is OFF")
+                raise update.ControllerNotReady("Connect the GPIB adapter and verify the output is OFF")
             with tempfile.TemporaryDirectory(prefix="hp6033a-web-release-") as temp:
                 source = Path(temp)
                 update.fetch_release(tag, source, commit)
@@ -527,5 +534,9 @@ if __name__ == "__main__":
             raise update.UpdateError("Invalid updater invocation")
     except (update.UpdateError, OSError, ValueError, KeyError) as error:
         print(f"Software update stopped: {error}", file=sys.stderr, flush=True)
-        sys.exit(2 if isinstance(error, update.RollbackComplete)
-                 else 3 if isinstance(error, update.RollbackFailed) else 1)
+        exit_codes = {
+            update.RollbackComplete: 2,
+            update.RollbackFailed: 3,
+            update.ControllerNotReady: CONTROLLER_NOT_READY_EXIT,
+        }
+        sys.exit(exit_codes.get(type(error), 1))

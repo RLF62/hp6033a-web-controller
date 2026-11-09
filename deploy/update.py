@@ -39,6 +39,10 @@ class UpdateError(RuntimeError):
     pass
 
 
+class ControllerNotReady(UpdateError):
+    pass
+
+
 class RollbackComplete(UpdateError):
     pass
 
@@ -417,10 +421,12 @@ class Controller:
         except ValueError:
             raise UpdateError("Controller status was not valid JSON") from None
         if (not isinstance(status, dict) or type(status.get("gpib_connected")) is not bool
-                or status.get("remote_control_enabled") is not False):
+                or type(status.get("remote_control_enabled")) is not bool):
             raise UpdateError("Expected a known read-only controller state")
+        if status["remote_control_enabled"]:
+            raise ControllerNotReady("Disable remote programming before updating")
         if status.get("output") is True or (status["gpib_connected"] and status.get("output") is not False):
-            raise UpdateError("The supply output must be confirmed OFF before an update")
+            raise ControllerNotReady("The supply output must be confirmed OFF before an update")
         return status["gpib_connected"]
 
     def check_health(self, previously_connected, pages):
@@ -556,7 +562,7 @@ def apply_update(app, source, version, controller, reuse, connected):
         })
         available = controller.status()
         if connected and not available:
-            raise UpdateError("GPIB became unavailable before activation")
+            raise ControllerNotReady("GPIB became unavailable before activation")
         with pending.open("x") as handle:
             handle.write(str(backup) + "\n")
 

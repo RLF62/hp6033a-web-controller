@@ -106,6 +106,31 @@ class SupervisorTests(SupervisorFixture):
             broker.dispatch({"action": "start"})
             command.assert_called_once_with("/usr/bin/systemctl", "start", "hp6033a.service", timeout=60)
 
+    def test_broker_reports_hardware_block_before_activation(self):
+        broker = web_update.JobBroker(self.supervisor, self.root, {}, "2", {})
+        account = web_update.pwd.getpwuid(os.getuid())
+        job = {"id": "fixture-job", **PIN}
+        with patch.object(web_update.subprocess, "Popen") as popen:
+            process = popen.return_value.__enter__.return_value
+            process.wait.return_value = web_update.CONTROLLER_NOT_READY_EXIT
+            phase = broker.run(account, job)
+        self.assertEqual(phase, "controller_not_ready")
+        self.supervisor.job = job
+        self.supervisor.phase(phase)
+        self.assertIn("Connect the USB-GPIB adapter", self.supervisor.job["message"])
+        self.assertIn("output is OFF", self.supervisor.job["message"])
+        self.assertEqual(broker.stops, 0)
+
+    def test_status_classifies_hardware_safety_blocks(self):
+        controller = web_update.update.Controller(self.config["url"], None, {}, "2", {})
+        for output, remote_enabled in ((True, False), (None, False), (False, True)):
+            with self.subTest(output=output, remote_enabled=remote_enabled):
+                status = {"gpib_connected": True, "output": output,
+                          "remote_control_enabled": remote_enabled}
+                with patch.object(controller, "get", return_value=json.dumps(status)):
+                    with self.assertRaises(web_update.update.ControllerNotReady):
+                        controller.status()
+
     def test_release_change_after_approval_never_starts_worker(self):
         self.supervisor.job = {"id": "fixture", "phase": "queued", **PIN}
         self.supervisor.release_provider = lambda: {**PIN, "commit": "b" * 40}
@@ -159,7 +184,9 @@ class DashboardTests(SupervisorFixture):
             page = self.client.get(route, base_url="https://localhost")
             self.assertEqual(page.status_code, 200)
             for label in ("Software Updates", "Check for Updates", "Release Notes", "Install Update",
-                          "Confirm and install", "min-height:44px"):
+                          "Confirm and install", "min-height:44px",
+                          "connect the USB-GPIB adapter to the power supply",
+                          "output is <strong>OFF</strong>"):
                 self.assertIn(label, page.get_data(as_text=True))
         response = self.call()
         self.assertEqual(response.status_code, 200)
